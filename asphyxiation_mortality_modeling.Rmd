@@ -1,0 +1,9 @@
+---
+title: "Infant Asphyxiation Mortality Modeling"
+author: "Daniel P. Riggins, MD"
+date: "11/1/2021"
+output: html_document
+---
+
+
+
