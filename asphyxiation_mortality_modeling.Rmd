@@ -6,4 +6,32 @@ output: html_document
 ---
 
 
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(DataExplorer)
+```
+
+```{r}
+raw <- readxl::read_xlsx("data/finaldataforanalysis3.xlsx")
+
+glimpse(raw)
+```
+
+```{r}
+tbl <- raw %>%
+    mutate(
+        count_Asphyxia_cat = factor(
+            count_Asphyxia,
+            ordered = TRUE,
+            levels = c(0,1,2,3,4,5,6)
+        )
+    )
+
+summary(tbl$count_Asphyxia_cat)
+```
+
+```{r}
+plot_intro(tbl)
+```
+
 
