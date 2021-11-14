@@ -56,6 +56,18 @@ enriched <-
 
 glimpse(enriched)
 ```
+
+# First Pass Exploration
+
+## Split data into training and test sets:
+
+```{r}
+split <- initial_split(enriched, prop = 0.75)
+training <- training(split)
+testing <- testing(split)
+```
+
+
 ```{r}
 tbl <- raw %>%
     mutate(
