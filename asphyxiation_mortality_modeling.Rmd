@@ -68,9 +68,11 @@ testing <- testing(split)
 ```
 
 
+## Summarize the primary outcome
+
 ```{r}
-tbl <- raw %>%
-    mutate(
+table(training$Count_Asphyxia)
+```
         count_Asphyxia_cat = factor(
             count_Asphyxia,
             ordered = TRUE,
