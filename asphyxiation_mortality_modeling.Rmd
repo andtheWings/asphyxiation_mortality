@@ -36,6 +36,26 @@ raw <- readxl::read_xlsx("data/finaldataforanalysis3_110221.xlsx")
 glimpse(raw)
 ```
 
+# Get census tract populations and spatial features
+
+```{r}
+enriched <-
+    get_acs(
+        geography = "tract",
+        variables = "B01003_001",
+        state = "IL",
+        geometry = TRUE
+    ) %>%
+    filter(GEOID %in% raw$FIPS) %>%
+    mutate(FIPS = as.numeric(GEOID)) %>%
+    select(
+        FIPS,
+        population = estimate
+    ) %>%
+    full_join(raw)
+
+glimpse(enriched)
+```
 ```{r}
 tbl <- raw %>%
     mutate(
