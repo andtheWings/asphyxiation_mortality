@@ -81,6 +81,14 @@ plot_histogram(training$Count_Asphyxia)
 
 The distribution of outcome data seems consistent with a count outcome approximated by theoretical distributions like the Poisson or negative binomial.
 
+## Visualize raw predictors
+
+```{r}
+plot_histogram(select(training, 2:32))
+```
+
+We can anticipate that many of these variables will be highly correlated with each other. Let's look closer.
+
     )
 
 summary(tbl$count_Asphyxia_cat)
