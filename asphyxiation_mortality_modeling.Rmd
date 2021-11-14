@@ -20,14 +20,18 @@ library(vcd)
 library(tidycensus)
 library(sf)
 tidymodels_prefer()
-
-```{r message=FALSE, warning=FALSE}
-library(tidyverse)
-library(DataExplorer)
 ```
 
+## Set pseudo-random seed for reproducibility:
+
 ```{r}
-raw <- readxl::read_xlsx("data/finaldataforanalysis3.xlsx")
+set.seed(324)
+```
+
+## Import the data:
+
+```{r}
+raw <- readxl::read_xlsx("data/finaldataforanalysis3_110221.xlsx")
 
 glimpse(raw)
 ```
