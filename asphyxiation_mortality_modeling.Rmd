@@ -5,6 +5,21 @@ date: "11/1/2021"
 output: html_document
 ---
 
+This modeling analysis will seek to predict infant asphyxiation deaths in Chicagoland census tracts using a variety of census-level predictor variables, many of which are derived from the CDC's [Social Vulnerability Index (SVI)](https://seandavi.github.io/sars2pack/reference/cdc_social_vulnerability_index.html).
+
+# Set Up
+
+## Load needed libraries:
+
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(tidymodels)
+library(DataExplorer)
+library(corrr)
+library(vcd)
+library(tidycensus)
+library(sf)
+tidymodels_prefer()
 
 ```{r message=FALSE, warning=FALSE}
 library(tidyverse)
