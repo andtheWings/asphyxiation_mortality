@@ -125,6 +125,15 @@ corr %>%
     arrange(desc(abs(Count_Asphyxia)))
 ```
 
+The percent of people living in a census tract with public insurance (barely) has the strongest correlation with asphyxiation count.
+
+Now show variables that at least have a weak correlation with asphyxiation count **AND** have less than a moderate correlation with public insurance.
+
+```{r}
+corr %>%
+    filter(abs(Count_Asphyxia) > 0.25) %>%
+    filter(abs(publicinsurance) < 0.5)
+```
     )
 
 summary(tbl$count_Asphyxia_cat)
