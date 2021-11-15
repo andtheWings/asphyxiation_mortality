@@ -167,6 +167,18 @@ base_recipe <-
     )
 ```
 
+## Transformation
+
+### Centering
+
+For ease of intercept interpretation, we will center the `publicinsurance` variable, since its minimum value never reaches zero.
+
+```{r}
+base_recipe <- 
+    base_recipe %>%
+    step_center(publicinsurance)
+```
+
 ```{r}
 plot_intro(tbl)
 ```
