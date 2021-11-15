@@ -89,6 +89,18 @@ plot_histogram(select(training, 2:32))
 
 We can anticipate that many of these variables will be highly correlated with each other. Let's look closer.
 
+## Explore correlations
+
+Here we'll generate a correlation matrix.
+
+```{r}
+corr <- training %>%
+    select(-FIPS) %>%
+    correlate() 
+
+
+corr
+```
     )
 
 summary(tbl$count_Asphyxia_cat)
