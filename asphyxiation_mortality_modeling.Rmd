@@ -134,7 +134,20 @@ corr %>%
     filter(abs(Count_Asphyxia) > 0.25) %>%
     filter(abs(publicinsurance) < 0.5)
 ```
+
+This just leaves the count of opioid deaths per census tract.
+
+Using 2 predictors is an appropriately parsimonious model. That said, later we can also compare the relative predictive utility of adding one more variable -- the percentage of white people per census tract. 
+
+Here is a final summary of correlation between the final predictors selected and the outcome.
+
+```{r}
+corr %>%
+    focus(
+        Count_Asphyxia, publicinsurance, Count_OPIOID_Death, white,
+        mirror = TRUE
     )
+```
 
 summary(tbl$count_Asphyxia_cat)
 ```
