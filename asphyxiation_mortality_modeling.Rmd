@@ -179,8 +179,41 @@ base_recipe <-
     step_center(publicinsurance)
 ```
 
+# Model Development
+
+## Develop multivariate Poisson regression model
+
 ```{r}
-plot_intro(tbl)
+poisson_glm_model <- 
+    poissonreg::poisson_reg() %>% 
+    set_engine("glm")
+
+poisson_glm_workflow <-
+    workflow() %>%
+    add_recipe(base_recipe) %>%
+    add_model(poisson_glm_model)
+
+poisson_glm_fit <-
+    fit(poisson_glm_workflow, data = training)
+
+poisson_glm_fit
 ```
+
+
+### Fitted model equation
+
+$log(Count\_Asphyxia) = 0.0252(Count\_OPIOID\_Death) + 0.0462(centered\_public\_insurance) - 1.816$
+    
+### Interpreting coefficients
+    
+The constant term is the prediction if `Count_OPIOID_Death` = 0 and `centered_public_insurance` = 0. In this case, because we’ve centered `public_insurance`, it implies that $e^{-1.816} = 0.163$, is the predicted number of asphyxiation deaths in a census tract with no opioid-related deaths and with the mean percentage of residents holding public insurance.
+
+The coefficient of `Count_OPIOID_Death`, 0.025, is the expected increase in count of asphyxiation deaths (on the log scale) for each additional opioid-related death. The expected multiplicative increase is $e^0.025 = 1.026$, corresponding to a 2.6% increase in the count.
+
+The coefficient of `centered_public_insurance`, 0.0462, is the expected increase in count of asphyxiation deaths (on the log scale) for each additional percentage point of residents on public insurance. The expected multiplicative increase is $e^0.0462 = 1.047$, corresponding to a 4.7% increase in the count.
+
+Each coefficient is interpreted as a comparison where one predictor changes by one unit, while the others remain constant.
+
+
 
 
