@@ -101,6 +101,30 @@ corr <- training %>%
 
 corr
 ```
+
+Note the numerous moderate to strongly-correlated variables. We will need to incorporate decorrelation into our pre-processing steps.
+
+# Pre-processing
+
+As alluded to earlier, we will be using Poisson regression as the primary model of consideration. According to Appendix A of @silgeTidyModeling, the recommended pre-processing steps for Poisson regression are dummy variable generation, removal of columns with single unique values, imputation for missing data, de-correlation, and possibly transformation.
+
+Many of these steps are not necessary for our data set. Because we do not have categorical predictors, we do not need to perform dummy variable generation or removal of columns with single unique variables. Because we do not have any missing data, we do not need to perform imputation. That leaves transformation and de-correlation.
+
+
+## Predictor selection
+
+Intertwined with decorrelation, is the actual selection of predictor variables. Let's start with a manual process.
+
+### Manual selection
+
+Start by showing variables that have at least a weak correlation with asphyxiation count:
+
+```{r}
+corr %>%
+    filter(abs(Count_Asphyxia) > 0.25) %>%
+    arrange(desc(abs(Count_Asphyxia)))
+```
+
     )
 
 summary(tbl$count_Asphyxia_cat)
