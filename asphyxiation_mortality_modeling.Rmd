@@ -182,24 +182,37 @@ base_recipe <-
 ## Develop multivariate Poisson regression model
 
 ```{r}
-poisson_glm_model <- 
-    poissonreg::poisson_reg() %>% 
-    set_engine("glm")
+pub_pois <-
+    glm(
+        Count_Asphyxia ~ publicinsurance,
+        family = poisson(),
+        data = training
+    )
 
-poisson_glm_workflow <-
-    workflow() %>%
-    add_recipe(base_recipe) %>%
-    add_model(poisson_glm_model)
+summary(pub_pois)
+```
+```{r}
+pub_opi_pois <-
+    glm(
+        Count_Asphyxia ~ publicinsurance + Count_OPIOID_Death,
+        family = poisson(),
+        data = training
+    )
 
-poisson_glm_fit <-
-    fit(poisson_glm_workflow, data = training)
+summary(pub_opi_pois)
+```
+```{r}
+pub_opi_whi_pois <-
+    glm(
+        Count_Asphyxia ~ publicinsurance + Count_OPIOID_Death + white,
+        family = poisson(),
+        data = training
+    )
 
-poisson_glm_fit
-
-poisson_w_pop <- glm(Count_Asphyxia ~ Count_OPIOID_Death + publicinsurance + population,
-        data = training)
-
-summary(poisson_w_pop)
+summary(pub_opi_whi_pois)
+```
+```{r}
+anova(pub_pois, pub_opi_pois, pub_opi_whi_pois, test = "Chisq")
 ```
 
 
