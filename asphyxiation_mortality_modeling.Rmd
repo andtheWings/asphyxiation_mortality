@@ -22,12 +22,6 @@ library(sf)
 tidymodels_prefer()
 ```
 
-## Set pseudo-random seed for reproducibility:
-
-```{r}
-set.seed(324)
-```
-
 ## Import the data:
 
 ```{r}
@@ -47,14 +41,16 @@ enriched <-
         geometry = TRUE
     ) %>%
     filter(GEOID %in% raw$FIPS) %>%
-    mutate(FIPS = as.numeric(GEOID)) %>%
+    mutate(
+        FIPS = as.numeric(GEOID),
+        centroid = st_centroid(geometry)
+    ) %>%
     select(
         FIPS,
-        population = estimate
+        population = estimate,
+        centroid
     ) %>%
     full_join(raw)
-
-glimpse(enriched)
 ```
 
 # First Pass Exploration
@@ -62,6 +58,7 @@ glimpse(enriched)
 ## Split data into training and test sets:
 
 ```{r}
+set.seed(324)
 split <- initial_split(enriched, prop = 0.75)
 training <- training(split)
 testing <- testing(split)
@@ -95,8 +92,9 @@ Here we'll generate a correlation matrix.
 
 ```{r}
 corr <- training %>%
-    select(-FIPS) %>%
-    correlate() 
+    as_tibble() %>%
+    select(-FIPS, -geometry) %>%
+    corrr::correlate()
 
 
 corr
@@ -121,7 +119,7 @@ Start by showing variables that have at least a weak correlation with asphyxiati
 
 ```{r}
 corr %>%
-    filter(abs(Count_Asphyxia) > 0.25) %>%
+    filter(abs(Count_Asphyxia) > 0.20) %>%
     arrange(desc(abs(Count_Asphyxia)))
 ```
 
@@ -131,7 +129,7 @@ Now show variables that at least have a weak correlation with asphyxiation count
 
 ```{r}
 corr %>%
-    filter(abs(Count_Asphyxia) > 0.25) %>%
+    filter(abs(Count_Asphyxia) > 0.20) %>%
     filter(abs(publicinsurance) < 0.5)
 ```
 
@@ -139,7 +137,7 @@ This just leaves the count of opioid deaths per census tract.
 
 Using 2 predictors is an appropriately parsimonious model. That said, later we can also compare the relative predictive utility of adding one more variable -- the percentage of white people per census tract. 
 
-Here is a final summary of correlation between the final predictors selected and the outcome.
+Here is a final summary of correlation between the predictors selected and the outcome.
 
 ```{r}
 corr %>%
@@ -197,6 +195,11 @@ poisson_glm_fit <-
     fit(poisson_glm_workflow, data = training)
 
 poisson_glm_fit
+
+poisson_w_pop <- glm(Count_Asphyxia ~ Count_OPIOID_Death + publicinsurance + population,
+        data = training)
+
+summary(poisson_w_pop)
 ```
 
 
