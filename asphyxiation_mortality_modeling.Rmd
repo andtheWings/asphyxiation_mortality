@@ -59,9 +59,11 @@ enriched <-
 
 ```{r}
 set.seed(324)
-split <- initial_split(enriched, prop = 0.75)
-training <- training(split)
-testing <- testing(split)
+split <- rsample::initial_split(enriched, prop = 0.75)
+training_geom <- rsample::training(split)
+testing_geom <- rsample::testing(split)
+training <- training_geom %>% as_tibble() %>% select(-centroid, -geometry)
+testing <- testing_geom %>% as_tibble() %>% select(-centroid, -geometry)
 ```
 
 
@@ -81,155 +83,170 @@ The distribution of outcome data seems consistent with a count outcome approxima
 ## Visualize raw predictors
 
 ```{r}
-plot_histogram(select(training, 2:32))
+plot_histogram(select(training, 2, 4:32))
 ```
 
-We can anticipate that many of these variables will be highly correlated with each other. Let's look closer.
+
+
+# Predictor selections
 
 ## Explore correlations
 
-Here we'll generate a correlation matrix.
+When choosing predictors for our model, we want variables that are as highly correlated with `Count_Asphyxia` as possible, while minimizing the potential for multicollinearity.
+
+Let's start by generating a correlation matrix:
 
 ```{r}
-corr <- training %>%
-    as_tibble() %>%
-    select(-FIPS, -geometry) %>%
-    corrr::correlate()
+correlations <- training %>%
+    select(-FIPS) %>%
+    corrr::correlate() %>%
+    relocate(Count_Asphyxia, .before = population)
 
-
-corr
+correlations
 ```
 
-Note the numerous moderate to strongly-correlated variables. We will need to incorporate decorrelation into our pre-processing steps.
-
-# Pre-processing
-
-As alluded to earlier, we will be using Poisson regression as the primary model of consideration. According to Appendix A of @silgeTidyModeling, the recommended pre-processing steps for Poisson regression are dummy variable generation, removal of columns with single unique values, imputation for missing data, de-correlation, and possibly transformation.
-
-Many of these steps are not necessary for our data set. Because we do not have categorical predictors, we do not need to perform dummy variable generation or removal of columns with single unique variables. Because we do not have any missing data, we do not need to perform imputation. That leaves transformation and de-correlation.
-
-
-## Predictor selection
-
-Intertwined with decorrelation, is the actual selection of predictor variables. Let's start with a manual process.
-
-### Manual selection
-
-Start by showing variables that have at least a weak correlation with asphyxiation count:
+Now filter for variables that have at least a weak correlation (>0.20) with `Count_Asphyxia`:
 
 ```{r}
-corr %>%
+asphyxia_correlations <-
+    correlations %>%
     filter(abs(Count_Asphyxia) > 0.20) %>%
     arrange(desc(abs(Count_Asphyxia)))
+
+asphyxia_correlations
 ```
 
-The percent of people living in a census tract with public insurance (barely) has the strongest correlation with asphyxiation count.
-
-Now show variables that at least have a weak correlation with asphyxiation count **AND** have less than a moderate correlation with public insurance.
+`publicinsurance` has (just barely) the strongest correlation with `Count_Asphyxia`. Let's visualize the relationship:
 
 ```{r}
-corr %>%
+plot(cor_test(training, "Count_Asphyxia", "publicinsurance"))
+```
+
+In order to minimize multicollinearity, let's select for variables that still have some degree of correlation with `Count_Asphyxia`, but have no more than weak correlation (<0.5) with `publicinsurance`:
+
+```{r}
+asphyxia_correlations %>%
     filter(abs(Count_Asphyxia) > 0.20) %>%
     filter(abs(publicinsurance) < 0.5)
 ```
 
 This just leaves the count of opioid deaths per census tract.
 
-Using 2 predictors is an appropriately parsimonious model. That said, later we can also compare the relative predictive utility of adding one more variable -- the percentage of white people per census tract. 
-
-Here is a final summary of correlation between the predictors selected and the outcome.
-
 ```{r}
-corr %>%
-    focus(
-        Count_Asphyxia, publicinsurance, Count_OPIOID_Death, white,
-        mirror = TRUE
-    )
+plot(cor_test(training, "Count_Asphyxia", "Count_OPIOID_Death"))
 ```
 
-And here are summary statistics of those predictors.
+There's a large outlier of many opioid deaths in an area with no asphyxiation deaths, but otherwise, there does seem to be a positive trend.
+
+To fill out our modeling, let's also try another four variables that correlate with `Count_Asphyxia`. These being `white`, `incomegt75`, `SVI_HouseholdCompositionDisability`, and `PE_marriedfemales`. I left out `black` and `private`, because these are definitely collinear with `white` and `publicinsurance` respectively. Those with a discerning eye will note that earlier I added census tract population count to our dataset as a potential control variable, but there does not seem to be a meaningful correlation between `population` and `Count_Asphyxia`.
+
+Here are summary statistics of our candidate predictors.
 
 ```{r}
 training %>%
-    select(Count_OPIOID_Death, publicinsurance, white) %>%
+    select(
+        Count_OPIOID_Death, 
+        publicinsurance, 
+        white, 
+        incomegt75, 
+        SVI_HouseholdCompositionDisability, 
+        PE_marriedfemales
+    ) %>%
     summary()
-
 ```
-With these predictors selected, let's set up our base pre-processing recipe.
 
-```{r}
-base_recipe <- 
-    recipe(
-        Count_Asphyxia ~ Count_OPIOID_Death + publicinsurance,
-        data = training
-    )
-```
+# Pre-processing
+
+As alluded to earlier, we will be using Poisson regression as the initial model of consideration. According to Appendix A of @silgeTidyModeling, the recommended pre-processing steps for Poisson regression are dummy variable generation, removal of columns with single unique values, imputation for missing data, de-correlation, and possibly transformation.
+
+Many of these steps are not necessary for our data set. Because we do not have categorical predictors, we do not need to perform dummy variable generation or removal of columns with single unique variables. Because we do not have any missing data, we do not need to perform imputation. That leaves transformation and de-correlation.
 
 ## Transformation
 
 ### Centering
 
-For ease of intercept interpretation, we will center the `publicinsurance` variable, since its minimum value never reaches zero.
+For ease of intercept interpretation, we will center the variables whose minimums are greater than zero.
 
 ```{r}
-base_recipe <- 
-    base_recipe %>%
-    step_center(publicinsurance)
+glm_training <-
+    training %>%
+    select(
+        Count_Asphyxia, 
+        publicinsurance, 
+        Count_OPIOID_Death,
+        white, 
+        incomegt75, 
+        SVI_HouseholdCompositionDisability, 
+        PE_marriedfemales
+    ) %>%
+    mutate(
+        publicinsurance_cen = publicinsurance - mean(publicinsurance),
+        incomegt75_cen = incomegt75 - mean(incomegt75),
+        SVI_HouseholdCompositionDisability_cen = SVI_HouseholdCompositionDisability - mean(SVI_HouseholdCompositionDisability),
+        PE_marriedfemales_cen = PE_marriedfemales - mean(PE_marriedfemales)
+    ) %>%
+    select(-c(publicinsurance,incomegt75, SVI_HouseholdCompositionDisability, PE_marriedfemales))
 ```
+
+## De-Correlation
+
+While selecting our variables, we have done our best to minimize multi-collinearity. However, eventually this analysis will also include principal component analysis as a means to potentially boost model performance.
 
 # Model Development
 
-## Develop multivariate Poisson regression model
+## Develop multivariate Poisson regression models
+
+Let's build up 6 models that use step-wise additions of the predictors of interest. We'll select a final model, by comparing their respective performance metrics.
 
 ```{r}
-pub_pois <-
-    glm(
-        Count_Asphyxia ~ publicinsurance,
-        family = poisson(),
-        data = training
-    )
-
-summary(pub_pois)
+poisson_1 <- glm(Count_Asphyxia ~ publicinsurance_cen, family = poisson(), data = glm_training)
+poisson_2 <- glm(Count_Asphyxia ~ publicinsurance_cen + Count_OPIOID_Death, family = poisson(), data = glm_training)
+poisson_3 <- glm(Count_Asphyxia ~ publicinsurance_cen + Count_OPIOID_Death + white, family = poisson(), data = glm_training)
+poisson_4 <- glm(Count_Asphyxia ~ publicinsurance_cen + Count_OPIOID_Death + white + incomegt75_cen, family = poisson(), data = glm_training)
+poisson_5 <- glm(Count_Asphyxia ~ publicinsurance_cen + Count_OPIOID_Death + white + incomegt75_cen + SVI_HouseholdCompositionDisability_cen, family = poisson(), data = glm_training)
+poisson_6 <- glm(Count_Asphyxia ~ publicinsurance_cen + Count_OPIOID_Death + white + incomegt75_cen + SVI_HouseholdCompositionDisability_cen + PE_marriedfemales_cen, family = poisson(), data = glm_training)
 ```
+
 ```{r}
-pub_opi_pois <-
-    glm(
-        Count_Asphyxia ~ publicinsurance + Count_OPIOID_Death,
-        family = poisson(),
-        data = training
-    )
-
-summary(pub_opi_pois)
+compare_performance(poisson_1, poisson_2, poisson_3, poisson_4, poisson_5, poisson_6) %>% print_html()
 ```
+Eye-balling the results, `poisson_4` seems like a good candidate since it has the best AIC value (best relative fit while adjusting for number of predictors) and is tied for best adjusted R-squared (quantification of fit) and RMSE (precision). Let's see if our intuition matches a with a ranking algorithm:
+
 ```{r}
-pub_opi_whi_pois <-
-    glm(
-        Count_Asphyxia ~ publicinsurance + Count_OPIOID_Death + white,
-        family = poisson(),
-        data = training
-    )
-
-summary(pub_opi_whi_pois)
+compare_performance(poisson_1, poisson_2, poisson_3, poisson_4, poisson_5, poisson_6, rank = TRUE) %>% print_html()
 ```
+It does! Let's visualize the fit with a rootogram:
+
 ```{r}
-anova(pub_pois, pub_opi_pois, pub_opi_whi_pois, test = "Chisq")
+get_freq_vector <- function(model) {
+    predicted_tbl <- 
+        as_tibble(round(model$fitted.values)) %>%
+        group_by(value) %>%
+        summarize(n = n())
+    return(predicted_tbl$n)
+}
+
+poisson_4_fit_freq <-get_freq_vector(poisson_4)
+
+poisson_4_fit_freq <- c(poisson_4_fit_freq, 0, 0, 0)
+
+vcd::rootogram(table(poisson_4$y), poisson_4_fit_freq)
 ```
 
+We see that the Poisson model does a decent job approximating counts for 0 and 1 occurrences of asphyxiation death, but severely under-counts anything above 1.
 
-### Fitted model equation
+This problem is called overdispersion and is not uncommon when modeling discrete count data. Overdispersion means that the observed data shows more variability than expected from the assumed distribution. Let's do a formal test for it:
 
-$log(Count\_Asphyxia) = 0.0252(Count\_OPIOID\_Death) + 0.0462(centered\_public\_insurance) - 1.816$
-    
-### Interpreting coefficients
-    
-The constant term is the prediction if `Count_OPIOID_Death` = 0 and `centered_public_insurance` = 0. In this case, because we’ve centered `public_insurance`, it implies that $e^{-1.816} = 0.163$, is the predicted number of asphyxiation deaths in a census tract with no opioid-related deaths and with the mean percentage of residents holding public insurance.
+```{r}
+check_overdispersion(poisson_4)
+```
+It is indeed present. We will likely get a better fit using a different assumed distribution of the outcome.
 
-The coefficient of `Count_OPIOID_Death`, 0.025, is the expected increase in count of asphyxiation deaths (on the log scale) for each additional opioid-related death. The expected multiplicative increase is $e^0.025 = 1.026$, corresponding to a 2.6% increase in the count.
+For completeness, let's check other indicators for validity of our model assumptions:
 
-The coefficient of `centered_public_insurance`, 0.0462, is the expected increase in count of asphyxiation deaths (on the log scale) for each additional percentage point of residents on public insurance. The expected multiplicative increase is $e^0.0462 = 1.047$, corresponding to a 4.7% increase in the count.
+```{r}
+check_model(poisson_4)
+```
 
-Each coefficient is interpreted as a comparison where one predictor changes by one unit, while the others remain constant.
-
-
-
+We see here we also have significant issues with heteroskedascity, an influential observation, and normality of the residuals. This provides further evidence that we should explore other means of modeling the outcome.
 
