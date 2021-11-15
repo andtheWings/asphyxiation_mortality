@@ -13,13 +13,13 @@ This modeling analysis will seek to predict infant asphyxiation deaths in Chicag
 
 ```{r message=FALSE, warning=FALSE}
 library(tidyverse)
-library(tidymodels)
 library(DataExplorer)
-library(corrr)
+library(correlation)
 library(vcd)
 library(tidycensus)
 library(sf)
-tidymodels_prefer()
+library(see)
+library(performance)
 ```
 
 ## Import the data:
