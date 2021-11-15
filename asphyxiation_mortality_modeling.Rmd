@@ -159,6 +159,12 @@ training %>%
 ```
 With these predictors selected, let's set up our base pre-processing recipe.
 
+```{r}
+base_recipe <- 
+    recipe(
+        Count_Asphyxia ~ Count_OPIOID_Death + publicinsurance,
+        data = training
+    )
 ```
 
 ```{r}
