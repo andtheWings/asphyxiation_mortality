@@ -149,7 +149,16 @@ corr %>%
     )
 ```
 
-summary(tbl$count_Asphyxia_cat)
+And here are summary statistics of those predictors.
+
+```{r}
+training %>%
+    select(Count_OPIOID_Death, publicinsurance, white) %>%
+    summary()
+
+```
+With these predictors selected, let's set up our base pre-processing recipe.
+
 ```
 
 ```{r}
