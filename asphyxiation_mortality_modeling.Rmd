@@ -108,7 +108,7 @@ correlations <- training %>%
 correlations
 ```
 
-Now filter for variables that have at least a weak correlation (>0.20) with `Count_Asphyxia`:
+Now filter for variables that have at least a weak correlation (> 0.20) with `Count_Asphyxia`:
 
 ```{r}
 asphyxia_correlations <-
@@ -125,7 +125,7 @@ asphyxia_correlations
 plot(cor_test(training, "Count_Asphyxia", "publicinsurance"))
 ```
 
-In order to minimize multicollinearity, let's select for variables that still have some degree of correlation with `Count_Asphyxia`, but have no more than weak correlation (<0.5) with `publicinsurance`:
+In order to minimize multicollinearity, let's select for variables that still have some degree of correlation with `Count_Asphyxia`, but have no more than weak correlation (< 0.5) with `publicinsurance`:
 
 ```{r}
 asphyxia_correlations %>%
@@ -133,7 +133,7 @@ asphyxia_correlations %>%
     filter(abs(publicinsurance) < 0.5)
 ```
 
-This just leaves the count of opioid deaths per census tract.
+This just leaves the count of opioid deaths per census tract:
 
 ```{r}
 plot(cor_test(training, "Count_Asphyxia", "Count_OPIOID_Death"))
@@ -141,9 +141,9 @@ plot(cor_test(training, "Count_Asphyxia", "Count_OPIOID_Death"))
 
 There's a large outlier of many opioid deaths in an area with no asphyxiation deaths, but otherwise, there does seem to be a positive trend.
 
-To fill out our modeling, let's also try another four variables that correlate with `Count_Asphyxia`. These being `white`, `incomegt75`, `SVI_HouseholdCompositionDisability`, and `PE_marriedfemales`. I left out `black` and `private`, because these are definitely collinear with `white` and `publicinsurance` respectively. Those with a discerning eye will note that earlier I added census tract population count to our dataset as a potential control variable, but there does not seem to be a meaningful correlation between `population` and `Count_Asphyxia`.
+To fill out our modeling, we wil also try another four variables that correlate with `Count_Asphyxia`. These being `white`, `incomegt75`, `SVI_HouseholdCompositionDisability`, and `PE_marriedfemales`. I left out `black` and `private` because these are definitely co-linear with `white` and `publicinsurance` respectively. Those with a discerning eye will note that earlier I added census tract population count to our data set as a potential control variable, but there does not seem to be a meaningful correlation between `Count_Asphyxia` and `population`.
 
-Here are summary statistics of our candidate predictors.
+Here are summary statistics of our candidate predictors:
 
 ```{r}
 training %>%
@@ -160,7 +160,7 @@ training %>%
 
 # Pre-processing
 
-As alluded to earlier, we will be using Poisson regression as the initial model of consideration. According to Appendix A of @silgeTidyModeling, the recommended pre-processing steps for Poisson regression are dummy variable generation, removal of columns with single unique values, imputation for missing data, de-correlation, and possibly transformation.
+As alluded to earlier, we will be using Poisson regression as the initial model of consideration. According to [Appendix A](https://www.tmwr.org/pre-proc-table.html) of @kuhnTidyModeling, the recommended pre-processing steps for Poisson regression are dummy variable generation, removal of columns with single unique values, imputation for missing data, de-correlation, and possibly transformation.
 
 Many of these steps are not necessary for our data set. Because we do not have categorical predictors, we do not need to perform dummy variable generation or removal of columns with single unique variables. Because we do not have any missing data, we do not need to perform imputation. That leaves transformation and de-correlation.
 
@@ -168,7 +168,7 @@ Many of these steps are not necessary for our data set. Because we do not have c
 
 ### Centering
 
-For ease of intercept interpretation, we will center the variables whose minimums are greater than zero.
+For ease of intercept interpretation, we will center the variables whose minimums are greater than zero:
 
 ```{r}
 glm_training <-
@@ -193,57 +193,71 @@ glm_training <-
 
 ## De-Correlation
 
-While selecting our variables, we have done our best to minimize multi-collinearity. However, eventually this analysis will also include principal component analysis as a means to potentially boost model performance.
+While selecting our variables, we have done our best to minimize multicollinearity. However, eventually this analysis will also include principal component analysis as a means to potentially boost model performance.
 
 # Model Development
 
 ## Develop multivariate Poisson regression models
 
-Let's build up 6 models that use step-wise additions of the predictors of interest. We'll select a final model, by comparing their respective performance metrics.
+Let's build up 6 models that use step-wise additions of the predictors of interest. We'll select a final model, by comparing their respective performance metrics:
 
 ```{r}
 poisson_1 <- glm(Count_Asphyxia ~ publicinsurance_cen, family = poisson(), data = glm_training)
+
 poisson_2 <- glm(Count_Asphyxia ~ publicinsurance_cen + Count_OPIOID_Death, family = poisson(), data = glm_training)
+
 poisson_3 <- glm(Count_Asphyxia ~ publicinsurance_cen + Count_OPIOID_Death + white, family = poisson(), data = glm_training)
+
 poisson_4 <- glm(Count_Asphyxia ~ publicinsurance_cen + Count_OPIOID_Death + white + incomegt75_cen, family = poisson(), data = glm_training)
+
 poisson_5 <- glm(Count_Asphyxia ~ publicinsurance_cen + Count_OPIOID_Death + white + incomegt75_cen + SVI_HouseholdCompositionDisability_cen, family = poisson(), data = glm_training)
+
 poisson_6 <- glm(Count_Asphyxia ~ publicinsurance_cen + Count_OPIOID_Death + white + incomegt75_cen + SVI_HouseholdCompositionDisability_cen + PE_marriedfemales_cen, family = poisson(), data = glm_training)
 ```
 
 ```{r}
 compare_performance(poisson_1, poisson_2, poisson_3, poisson_4, poisson_5, poisson_6) %>% print_html()
 ```
-Eye-balling the results, `poisson_4` seems like a good candidate since it has the best AIC value (best relative fit while adjusting for number of predictors) and is tied for best adjusted R-squared (quantification of fit) and RMSE (precision). Let's see if our intuition matches a with a ranking algorithm:
+
+Eye-balling the results, `poisson_4` seems like a good candidate since it has the best AIC value (best relative fit while adjusting for number of predictors) and is tied for best adjusted R-squared (quantification of fit) and RMSE (precision). Let's see if our intuition matches with a ranking algorithm:
 
 ```{r}
 compare_performance(poisson_1, poisson_2, poisson_3, poisson_4, poisson_5, poisson_6, rank = TRUE) %>% print_html()
 ```
+
 It does! Let's visualize the fit with a rootogram:
 
 ```{r}
-get_freq_vector <- function(model) {
-    predicted_tbl <- 
+get_pred_freq_vector <- function(model) {
+    pred_tbl <- 
         as_tibble(round(model$fitted.values)) %>%
         group_by(value) %>%
         summarize(n = n())
-    return(predicted_tbl$n)
+    
+    diff <- length(table(model$y)) - length(pred_tbl$n)
+    
+    if(diff == 0){
+        pred_freq_vector <- pred_tbl$n
+    } else if(diff > 0) {
+        pred_freq_vector <- c(pred_tbl$n, rep(0, diff))
+    }
+    
+    return(pred_freq_vector)
 }
 
-poisson_4_fit_freq <-get_freq_vector(poisson_4)
+poisson_4_pred_freq <-get_pred_freq_vector(poisson_4)
 
-poisson_4_fit_freq <- c(poisson_4_fit_freq, 0, 0, 0)
-
-vcd::rootogram(table(poisson_4$y), poisson_4_fit_freq)
+vcd::rootogram(table(poisson_4$y), poisson_4_pred_freq)
 ```
 
-We see that the Poisson model does a decent job approximating counts for 0 and 1 occurrences of asphyxiation death, but severely under-counts anything above 1.
+We see that our Poisson model does a decent job approximating counts of 0 and 1 for `Count_Asphyxia`, but under-counts anything above 1.
 
 This problem is called overdispersion and is not uncommon when modeling discrete count data. Overdispersion means that the observed data shows more variability than expected from the assumed distribution. Let's do a formal test for it:
 
 ```{r}
 check_overdispersion(poisson_4)
 ```
-It is indeed present. We will likely get a better fit using a different assumed distribution of the outcome.
+While not terrible, overdispersion is indeed present. We will likely get a better fit using a different assumed distribution of the outcome.
 
 For completeness, let's check other indicators for validity of our model assumptions:
 
@@ -251,5 +265,5 @@ For completeness, let's check other indicators for validity of our model assumpt
 check_model(poisson_4)
 ```
 
-We see here we also have significant issues with heteroskedascity, an influential observation, and normality of the residuals. This provides further evidence that we should explore other means of modeling the outcome.
+We see here we also have issues with heteroskedascity, with influential observations, and with normality of the residuals. This provides further evidence that we should explore other means of modeling the outcome.
 
