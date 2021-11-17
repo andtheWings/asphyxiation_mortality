@@ -68,8 +68,9 @@ training <- training_geom %>% as_tibble() %>% select(-centroid, -geometry)
 testing <- testing_geom %>% as_tibble() %>% select(-centroid, -geometry)
 ```
 
+# First Pass Exploration
 
-## Summarize the primary outcome
+## Summarize the primary outcome (count of asphyxia deaths per census tract):
 
 ```{r}
 table(training$Count_Asphyxia)
@@ -80,9 +81,9 @@ table(training$Count_Asphyxia)
 plot_histogram(training$Count_Asphyxia)
 ```
 
-The distribution of outcome data seems consistent with a count outcome approximated by theoretical distributions like the Poisson or negative binomial.
+The distribution of outcome data seems consistent with theoretical distributions like the Poisson or negative binomial.
 
-## Visualize raw predictors
+## Visualize raw predictors:
 
 ```{r}
 plot_histogram(select(training, 2, 4:32))
@@ -90,7 +91,7 @@ plot_histogram(select(training, 2, 4:32))
 
 
 
-# Predictor selections
+# Predictor selection
 
 ## Explore correlations
 
@@ -101,8 +102,8 @@ Let's start by generating a correlation matrix:
 ```{r}
 correlations <- training %>%
     select(-FIPS) %>%
-    corrr::correlate() %>%
-    relocate(Count_Asphyxia, .before = population)
+    relocate(Count_Asphyxia, .before = population) %>%
+    corrr::correlate()
 
 correlations
 ```
