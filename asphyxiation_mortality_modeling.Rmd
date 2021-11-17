@@ -26,19 +26,18 @@ library(performance)
 
 ```{r}
 raw <- readxl::read_xlsx("data/finaldataforanalysis3_110221.xlsx")
-
-glimpse(raw)
 ```
 
-# Get census tract populations and spatial features
+## Get census tract populations and spatial features:
 
-```{r}
+```{r echo=TRUE, results=FALSE, message=TRUE, warning=TRUE}
 enriched <-
     get_acs(
         geography = "tract",
         variables = "B01003_001",
         state = "IL",
-        geometry = TRUE
+        geometry = TRUE,
+        cache_table = TRUE
     ) %>%
     filter(GEOID %in% raw$FIPS) %>%
     mutate(
@@ -53,9 +52,12 @@ enriched <-
     full_join(raw)
 ```
 
-# First Pass Exploration
-
+```{r}
+glimpse(enriched)
+```
 ## Split data into training and test sets:
+
+The training set will be used for model development and iterative model performance comparisons via resampling. The testing set will be used for final model validation. See [Ch. 5](https://www.tmwr.org/splitting.html) of @kuhnTidyModeling for more details on the rationale.
 
 ```{r}
 set.seed(324)
