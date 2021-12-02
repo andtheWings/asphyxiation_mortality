@@ -83,6 +83,39 @@ plot_histogram(training$Count_Asphyxia)
 
 The distribution of outcome data seems consistent with theoretical distributions like the Poisson or negative binomial.
 
+## Visualize the outcome on a map:
+
+```{r}
+tmap_mode("view")
+
+tm_shape(enriched) +
+    tm_polygons("Count_Asphyxia")
+```
+
+
+```{r}
+
+asphyxia.sp <- enriched %>%
+    select(Count_Asphyxia) %>%
+    as_Spatial()
+
+weighted_list <- 
+    spdep::poly2nb(asphyxia.sp, queen = TRUE) %>%
+    spdep::nb2listw(style = "W")
+
+asphyxia_lag <- spdep::lag.listw(weighted_list, asphyxia.sp$Count_Asphyxia)
+
+plot( asphyxia_lag ~ asphyxia.sp$Count_Asphyxia, pch=20, asp=1, las=1)
+```
+
+
+```{r}
+MC <- moran.mc(asphyxia.sp$Count_Asphyxia, weighted_list, nsim=599)
+
+MC
+```
+
+
 ## Visualize raw predictors:
 
 ```{r}
