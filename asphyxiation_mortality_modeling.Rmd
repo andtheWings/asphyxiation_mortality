@@ -283,26 +283,36 @@ compare_performance(poisson_models, rank = TRUE) %>% print_html()
 It does! Let's visualize the fit with a rootogram:
 
 ```{r}
-get_pred_freq_vector <- function(model) {
-    pred_tbl <- 
-        as_tibble(round(model$fitted.values)) %>%
-        group_by(value) %>%
-        summarize(n = n())
+make_rootogram <- function(model) {
     
-    diff <- length(table(model$y)) - length(pred_tbl$n)
-    
-    if(diff == 0){
-        pred_freq_vector <- pred_tbl$n
-    } else if(diff > 0) {
-        pred_freq_vector <- c(pred_tbl$n, rep(0, diff))
+    if(any(class(model) %in% "glm")){
+        predictions <- 
+            as_tibble(round(model$fitted.values)) %>%
+            group_by(value) %>%
+            summarize(n = n()) %>%
+            pull("n")
+        observations <-
+            model$y
+    } else if(any(class(model) %in% "tbl_df")) {
+        predictions <-
+            as_tibble(round(model$.pred)) %>%
+            group_by(value) %>%
+            summarize(n = n()) %>%
+            pull("n")
+        observations <- model$.obs
     }
     
-    return(pred_freq_vector)
+    diff <- length(table(observations)) - length(predictions)
+    print(diff)
+
+    if(diff > 0){
+        predictions <- c(predictions, rep(0, diff))
+    }
+    
+    return(vcd::rootogram(table(observations), predictions))
 }
 
-poisson_4_pred_freq <-get_pred_freq_vector(poisson_4)
-
-vcd::rootogram(table(poisson_4$y), poisson_4_pred_freq)
+make_rootogram(poisson_models[[4]])
 ```
 
 We see that our Poisson model does a decent job approximating counts of 0 and 1 for `Count_Asphyxia`, but under-counts anything above 1.
