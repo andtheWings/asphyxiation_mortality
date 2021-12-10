@@ -411,3 +411,16 @@ Data Dictionary:
 - white: Percent of people in that census tract who self-identify as white (predictor)
 - incomegt75: Percent of people in that census tract with income greater than the 75th percentile (predictor)
 
+## Try out zero-inflated models
+
+```{r}
+formula_4 <- Count_Asphyxia ~ publicinsurance_cen + Count_OPIOID_Death + white + incomegt75_cen
+
+zip_4 <- pscl::zeroinfl(formula_4, data = glm_training)
+
+zinb_4 <- pscl::zeroinfl(formula_4, dist = "negbin", data = glm_training)
+```
+
+```{r}
+compare_performance(poisson_4, binom_4, zip_4, zinb_4) %>% print_html()
+```
