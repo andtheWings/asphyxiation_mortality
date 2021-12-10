@@ -60,16 +60,23 @@ enriched <-
     full_join(raw)
 ```
 
+
 ```{r}
 glimpse(enriched)
 ```
+```{r}
+st_coordinates(enriched$centroid) %>% 
+    as_tibble() %>%
+    rename(longitude = X, latitude = Y)
+```
+
 ## Split data into training and test sets:
 
 The training set will be used for model development and iterative model performance comparisons via resampling. The testing set will be used for final model validation. See [Ch. 5](https://www.tmwr.org/splitting.html) of @kuhnTidyModeling for more details on the rationale.
 
 ```{r}
 set.seed(324)
-split <- rsample::initial_split(enriched, prop = 0.75)
+split <- rsample::initial_split(enriched, prop = 0.75, strata = Count_Asphyxia)
 training_geom <- rsample::training(split)
 testing_geom <- rsample::testing(split)
 training <- training_geom %>% as_tibble() %>% select(-centroid, -geometry)
