@@ -31,10 +31,16 @@ raw <- readxl::read_xlsx("data/finaldataforanalysis3_110221.xlsx")
 ## Get census tract populations and spatial features:
 
 ```{r echo=TRUE, results=FALSE, message=TRUE, warning=TRUE}
+# tidycensus::load_variables(2019, "acs5", cache = TRUE) %>% view()
+# "B01003_001" : Total Population
+# "B01001_003" : All Males Under 5 yrs
+# "B01001_027" : All Females Under 5 yrs
+# "B06001_002" : All Under 5 yrs
+
 enriched <-
     get_acs(
         geography = "tract",
-        variables = "B01003_001",
+        variables = "B06001_002",
         state = "IL",
         geometry = TRUE,
         cache_table = TRUE
