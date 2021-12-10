@@ -5,7 +5,7 @@ date: "11/1/2021"
 output: html_document
 ---
 
-This modeling analysis will seek to predict infant asphyxiation deaths in Chicagoland census tracts using a variety of census-level predictor variables, many of which are derived from the CDC's [Social Vulnerability Index (SVI)](https://seandavi.github.io/sars2pack/reference/cdc_social_vulnerability_index.html).
+This modeling analysis will seek to predict the number of Sudden Infant Death Syndrome (SIDS)-related deaths in Chicagoland census tracts using a variety of census-level predictor variables, many of which are derived from the CDC's [Social Vulnerability Index (SVI)](https://seandavi.github.io/sars2pack/reference/cdc_social_vulnerability_index.html).
 
 # Set Up
 
@@ -27,7 +27,7 @@ library(spdep)
 ## Import the data:
 
 ```{r}
-raw <- readxl::read_xlsx("data/finaldataforanalysis3_110221.xlsx")
+raw <- readxl::read_xlsx("data/finaldataforanalysis3_211102.xlsx")
 ```
 
 ## Get census tract populations and spatial features:
@@ -58,29 +58,14 @@ enriched <-
         centroid
     ) %>%
     full_join(raw)
-```
 
-
-```{r}
 glimpse(enriched)
 ```
+
 ```{r}
 st_coordinates(enriched$centroid) %>% 
     as_tibble() %>%
     rename(longitude = X, latitude = Y)
-```
-
-## Split data into training and test sets:
-
-The training set will be used for model development and iterative model performance comparisons via resampling. The testing set will be used for final model validation. See [Ch. 5](https://www.tmwr.org/splitting.html) of @kuhnTidyModeling for more details on the rationale.
-
-```{r}
-set.seed(324)
-split <- rsample::initial_split(enriched, prop = 0.75, strata = Count_Asphyxia)
-training_geom <- rsample::training(split)
-testing_geom <- rsample::testing(split)
-training <- training_geom %>% as_tibble() %>% select(-centroid, -geometry)
-testing <- testing_geom %>% as_tibble() %>% select(-centroid, -geometry)
 ```
 
 # First Pass Exploration
