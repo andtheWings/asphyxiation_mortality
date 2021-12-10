@@ -424,3 +424,33 @@ zinb_4 <- pscl::zeroinfl(formula_4, dist = "negbin", data = glm_training)
 ```{r}
 compare_performance(poisson_4, binom_4, zip_4, zinb_4) %>% print_html()
 ```
+
+## Develop Random Forest Model
+
+```{r}
+preds <- c("publicinsurance_cen", "Count_OPIOID_Death", "white", "incomegt75_cen")
+
+library(tidymodels)
+
+rf_pred_obs <- 
+    rand_forest(mode = "regression") %>%
+    set_engine("ranger") %>%
+    fit_xy(
+        x = glm_training[, preds],
+        y = glm_training$Count_Asphyxia
+     ) %>%
+    predict(glm_training) %>%
+    bind_cols(.obs = glm_training$Count_Asphyxia)
+```
+
+```{r}
+rf_pred_tbl <- 
+        as_tibble(round(rf_preds$.pred)) %>%
+        group_by(value) %>%
+        summarize(n = n())
+
+rf_pred_freq_vector <- c(rf_pred_tbl$n, rep(0, 2))
+
+vcd::rootogram(table(glm_training$Count_Asphyxia), rf_pred_freq_vector)
+```
+
