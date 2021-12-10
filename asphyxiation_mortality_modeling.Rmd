@@ -358,3 +358,30 @@ vcd::rootogram(table(qpoisson_4$y), qpoisson_4_pred_freq)
 check_model(qpoisson_4)
 ```
 
+## Develop Negative Binomial Model
+
+```{r}
+binom_3 <- MASS::glm.nb(Count_Asphyxia ~ publicinsurance_cen + Count_OPIOID_Death + white, link = log, data = glm_training)
+
+binom_4 <- MASS::glm.nb(Count_Asphyxia ~ publicinsurance_cen + Count_OPIOID_Death + white + incomegt75_cen, link = log, data = glm_training)
+
+binom_5 <- MASS::glm.nb(Count_Asphyxia ~ publicinsurance_cen + Count_OPIOID_Death + white + incomegt75_cen + SVI_HouseholdCompositionDisability_cen, link = log, data = glm_training)
+```
+
+```{r}
+compare_performance(binom_3, binom_4, binom_5, rank = TRUE) %>% print_html()
+```
+
+```{r}
+make_rootogram(binom_4)
+```
+
+
+```{r}
+check_model(binom_4)
+```
+
+```{r}
+compare_performance(binom_4, poisson_4, rank = TRUE) %>% print_html()
+```
+
