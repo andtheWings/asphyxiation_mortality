@@ -385,3 +385,29 @@ check_model(binom_4)
 compare_performance(binom_4, poisson_4, rank = TRUE) %>% print_html()
 ```
 
+### Export model predictions and observations
+
+```{r}
+neg_binomial_export <-
+    bind_cols(
+        glm_training[,c("FIPS", "Count_Asphyxia", "publicinsurance", "Count_OPIOID_Death", "white", "incomegt75")],
+        raw_predictions = binom_4$fitted.values,
+        rounded_predictions = round(binom_4$fitted.values)
+    ) %>%
+    relocate(raw_predictions, rounded_predictions, .after = Count_Asphyxia)
+
+xlsx::write.xlsx(neg_binomial_export, "data/negative_binomial_prediction_model_2021_11_23.xlsx")
+```
+
+
+Data Dictionary:
+
+- FIPS: Census Tract ID
+- Count_Asphyxia: Count of asphyxia-related deaths in that census tract (observed outcome)
+- raw_predictions: Output of prediction model for counts of asphyxia-related deaths
+- rounded_predictions: The raw predictions rounded into discrete count values
+- publicinsurance: Percent of people in that census tract on public health insurance (predictor)
+- Count_OPIOID_Death: Count of opioid-related deaths in that census tract (predictor)
+- white: Percent of people in that census tract who self-identify as white (predictor)
+- incomegt75: Percent of people in that census tract with income greater than the 75th percentile (predictor)
+
