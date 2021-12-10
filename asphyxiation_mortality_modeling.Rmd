@@ -20,6 +20,8 @@ library(tidycensus)
 library(sf)
 library(see)
 library(performance)
+library(tmap)
+library(spdep)
 ```
 
 ## Import the data:
