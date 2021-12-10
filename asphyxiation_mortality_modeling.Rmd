@@ -332,3 +332,29 @@ check_model(poisson_4)
 
 We see here we also have issues with heteroskedascity, with influential observations, and with normality of the residuals. This provides further evidence that we should explore other means of modeling the outcome.
 
+## Develop Quasi-Poisson Models
+
+```{r}
+qpoisson_2 <- glm(Count_Asphyxia ~ publicinsurance_cen + Count_OPIOID_Death, quasipoisson(), data = glm_training)
+
+qpoisson_3 <- glm(Count_Asphyxia ~ publicinsurance_cen + Count_OPIOID_Death + white, family = quasipoisson(), data = glm_training)
+
+qpoisson_4 <- glm(Count_Asphyxia ~ publicinsurance_cen + Count_OPIOID_Death + white + incomegt75_cen, family = quasipoisson(), data = glm_training)
+
+qpoisson_5 <- glm(Count_Asphyxia ~ publicinsurance_cen + Count_OPIOID_Death + white + incomegt75_cen + SVI_HouseholdCompositionDisability_cen, family = quasipoisson(), data = glm_training)
+```
+
+```{r}
+compare_performance(qpoisson_2, qpoisson_3, qpoisson_4, qpoisson_5, rank = TRUE) %>% print_html()
+```
+
+```{r}
+qpoisson_4_pred_freq <-get_pred_freq_vector(qpoisson_4)
+
+vcd::rootogram(table(qpoisson_4$y), qpoisson_4_pred_freq)
+```
+
+```{r}
+check_model(qpoisson_4)
+```
+
