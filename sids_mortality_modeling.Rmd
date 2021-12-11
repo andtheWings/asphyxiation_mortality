@@ -39,33 +39,37 @@ raw <- readxl::read_xlsx("data/finaldataforanalysis3_211102.xlsx")
 # "B01001_027" : All Females Under 5 yrs
 # "B06001_002" : All Under 5 yrs
 
-enriched <-
-    get_acs(
-        geography = "tract",
-        variables = "B06001_002",
-        state = "IL",
-        geometry = TRUE,
-        cache_table = TRUE
-    ) %>%
-    filter(GEOID %in% raw$FIPS) %>%
-    mutate(
-        FIPS = as.numeric(GEOID),
-        centroid = st_centroid(geometry)
-    ) %>%
-    select(
-        FIPS,
-        population = estimate,
-        centroid
-    ) %>%
-    full_join(raw)
+get_coords_and_pop <- function(tibble) {
+    acs_payload <- 
+        get_acs(
+            geography = "tract",
+            variables = "B06001_002",
+            state = "IL",
+            geometry = TRUE,
+            cache_table = TRUE
+        ) %>%
+        filter(.data[["GEOID"]] %in% tibble[["FIPS"]]) 
+    
+    final <-
+        acs_payload %>%
+        mutate(
+            FIPS = as.numeric(.data[["GEOID"]]),
+            centroid = st_centroid(st_geometry(acs_payload)),
+            longitude = st_coordinates(.data[["centroid"]])[,1],
+            latitude = st_coordinates(.data[["centroid"]])[,2]
+        ) %>%
+        select(
+            FIPS,
+            est_pop_under_five = estimate,
+            longitude,
+            latitude
+        ) %>%
+        full_join(tibble) 
+    
+    return(final)
+}
 
-glimpse(enriched)
-```
-
-```{r}
-st_coordinates(enriched$centroid) %>% 
-    as_tibble() %>%
-    rename(longitude = X, latitude = Y)
+enriched <- get_coords_and_pop(raw)
 ```
 
 # First Pass Exploration
