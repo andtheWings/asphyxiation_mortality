@@ -72,17 +72,45 @@ get_coords_and_pop <- function(tibble) {
 enriched <- get_coords_and_pop(raw)
 ```
 
+## Generate spatially-clustered folds of data for cross-validation
+
+```{r}
+set.seed(326)
+
+folds <- 
+    spatialsample::spatial_clustering_cv(
+        data = as_tibble(enriched),
+        coords = c("latitude", "longitude"),
+        v = 10 # Number of folds to generate
+    )
+
+# This function derived from vignette for the {spatialsample} pkg
+# It visualizes the folds you have generated
+plot_splits <- function(split) {
+    p <- analysis(split) %>%
+        mutate(analysis = "Analysis") %>%
+        bind_rows(assessment(split) %>%
+                      mutate(analysis = "Assessment")) %>%
+        ggplot(aes(longitude, latitude, color = analysis)) + 
+        geom_point(alpha = 0.5) +
+        labs(color = NULL)
+    print(p)
+}
+
+walk(folds$splits, plot_splits)
+```
+
 # First Pass Exploration
 
 ## Summarize the primary outcome (count of asphyxia deaths per census tract):
 
 ```{r}
-table(training$Count_Asphyxia)
+table(enriched$Count_Asphyxia)
 ```
 ## Visualize the primary outcome:
 
 ```{r}
-plot_histogram(training$Count_Asphyxia)
+plot_histogram(enriched$Count_Asphyxia)
 ```
 
 The distribution of outcome data seems consistent with theoretical distributions like the Poisson or negative binomial.
@@ -98,7 +126,6 @@ tm_shape(enriched) +
 
 
 ```{r}
-
 asphyxia.sp <- enriched %>%
     select(Count_Asphyxia) %>%
     as_Spatial()
