@@ -22,6 +22,8 @@ library(see)
 library(performance)
 library(tmap)
 library(spdep)
+library(tidymodels)
+tidymodels_prefer()
 ```
 
 ## Import the data:
@@ -56,20 +58,27 @@ get_coords_and_pop <- function(tibble) {
             FIPS = as.numeric(.data[["GEOID"]]),
             centroid = st_centroid(st_geometry(acs_payload)),
             longitude = st_coordinates(.data[["centroid"]])[,1],
-            latitude = st_coordinates(.data[["centroid"]])[,2]
+            latitude = st_coordinates(.data[["centroid"]])[,2],
+            pop_under_five = estimate
         ) %>%
         select(
             FIPS,
-            est_pop_under_five = estimate,
+            pop_under_five,
             longitude,
             latitude
         ) %>%
-        full_join(tibble) 
+        full_join(tibble) %>%
+        mutate(est_proportion_SIDS = .data[["Count_Asphyxia"]] / (.data[["pop_under_five"]] / 5))
     
     return(final)
 }
 
 enriched <- get_coords_and_pop(raw)
+
+df <- enriched %>%
+    as_tibble() %>%
+    select(-geometry)
+
 ```
 
 ## Generate spatially-clustered folds of data for cross-validation
@@ -102,6 +111,21 @@ walk(folds$splits, plot_splits)
 
 # First Pass Exploration
 
+##
+
+```{r}
+plot_histogram(df$est_proportion_SIDS)
+```
+
+
+```{r}
+df %>% 
+  count(est_proportion_SIDS == 0) %>% 
+  mutate(prop = n / sum(n))
+```
+
+
+
 ## Summarize the primary outcome (count of asphyxia deaths per census tract):
 
 ```{r}
@@ -113,15 +137,27 @@ table(enriched$Count_Asphyxia)
 plot_histogram(enriched$Count_Asphyxia)
 ```
 
+```{r}
+plot_histogram(filter(enriched, percent_SIDS > 0)[["percent_SIDS"]])
+```
+
+
 The distribution of outcome data seems consistent with theoretical distributions like the Poisson or negative binomial.
+
+## Visualize the outcome as percentage of estimated population of children under age 1
 
 ## Visualize the outcome on a map:
 
 ```{r}
+
+test <- enriched %>%
+    filter(Count_Asphyxia > 0) %>%
+    mutate(percentile = percent_rank(percent_SIDS))
+
 tmap_mode("view")
 
-tm_shape(enriched) +
-    tm_polygons("Count_Asphyxia")
+tm_shape(test) +
+    tm_polygons("percentile")
 ```
 
 
@@ -161,6 +197,16 @@ plot_histogram(select(training, 2, 4:32))
 
 When choosing predictors for our model, we want variables that are as highly correlated with `Count_Asphyxia` as possible, while minimizing the potential for multicollinearity.
 
+```{r}
+tmwr_cols <- colorRampPalette(c("#91CBD765", "#CA225E"))
+enriched %>%
+    as_tibble() %>%
+    select(-FIPS, -longitude, -latitude, -geometry) %>%
+    cor() %>%
+    corrplot::corrplot(col = tmwr_cols(200), tl.col = "black")
+```
+
+
 Let's start by generating a correlation matrix:
 
 ```{r}
@@ -171,6 +217,9 @@ correlations <- training %>%
 
 correlations
 ```
+
+
+
 
 Now filter for variables that have at least a weak correlation (> 0.20) with `Count_Asphyxia`:
 
@@ -259,6 +308,47 @@ glm_training <-
 
 While selecting our variables, we have done our best to minimize multicollinearity. However, eventually this analysis will also include principal component analysis as a means to potentially boost model performance.
 
+```{r}
+umap_recipe <- 
+    recipe(Count_Asphyxia ~ ., data = df) %>%
+    update_role(FIPS, new_role = "ID") %>%
+    update_role(
+        longitude, latitude, est_percent_SIDS,
+        new_role = "not_in_model"
+    ) %>%
+    step_normalize(all_numeric_predictors()) %>%
+    embed::step_umap(all_predictors())
+    
+umap_prep <- prep(umap_recipe)
+    
+umap_bake <- bake(umap_prep, new_data = df)
+
+umap_bake %>%
+  ggplot(aes(UMAP1, UMAP2)) +
+  geom_point(alpha = 0.5, size = 2)+
+  labs(color = NULL) +
+  theme_minimal()
+
+poisson_recipe <-
+    recipe(Count_Asphyxia ~ UMAP1 + UMAP2, data = umap_bake)
+
+poisson_model <-
+    poissonreg::poisson_reg()
+
+umap_poisson_workflow <-
+    workflow() %>%
+    add_recipe(poisson_recipe) %>%
+    add_model(poisson_model) %>%
+    fit(umap_bake)
+
+umap_poisson_predict <- 
+    predict(umap_poisson_workflow, umap_bake) %>%
+    bind_cols(.obs = umap_bake$Count_Asphyxia)
+
+
+```
+
+
 # Model Development
 
 Let's build up 6 models that use step-wise additions of the predictors of interest. We'll select a final model, by comparing their respective performance metrics:
@@ -329,6 +419,8 @@ make_rootogram <- function(model) {
 }
 
 make_rootogram(poisson_models[[4]])
+
+make_rootogram(umap_poisson_predict)
 ```
 
 We see that our Poisson model does a decent job approximating counts of 0 and 1 for `Count_Asphyxia`, but under-counts anything above 1.
