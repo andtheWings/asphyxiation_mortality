@@ -1,564 +1,423 @@
 ---
-title: "Infant Asphyxiation Mortality Modeling"
-author: "Daniel P. Riggins, MD"
-date: "11/1/2021"
+title: "Modeling Counts of Sudden Infant Death Syndrome in Census Tracts of Cook County, IL"
+author: "Daniel P. Hall Riggins, MD"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: html_document
 ---
 
-This modeling analysis will seek to predict the number of Sudden Infant Death Syndrome (SIDS)-related deaths in Chicagoland census tracts using a variety of census-level predictor variables, many of which are derived from the CDC's [Social Vulnerability Index (SVI)](https://seandavi.github.io/sars2pack/reference/cdc_social_vulnerability_index.html).
+This analysis seeks to model the number of cases of Sudden Infant Death Syndrome (SIDS)-related deaths in Cook County, IL census tracts using a variety of census-level ecologic variables, some of which are derived from the CDC's [Social Vulnerability Index (SVI)](https://seandavi.github.io/sars2pack/reference/cdc_social_vulnerability_index.html). 
 
-# Set Up
-
-## Load needed libraries:
-
-```{r message=FALSE, warning=FALSE}
-library(tidyverse)
-library(DataExplorer)
-library(correlation)
-library(vcd)
-library(tidycensus)
-library(sf)
-library(see)
-library(performance)
-library(tmap)
-library(spdep)
-library(tidymodels)
-tidymodels_prefer()
+```{r message=FALSE, warning=FALSE, include=FALSE}
+# Load needed modules
+box::use(
+    broom[augment, glance, tidy],
+    correlation[cor_test],
+    corrr[correlate],
+    DataExplorer[plot_histogram],
+    dplyr[
+        arrange, 
+        case_when, 
+        desc, 
+        filter, 
+        full_join,
+        left_join,
+        mutate, 
+        percent_rank, 
+        relocate, 
+        select
+    ],
+    effectsize[standardize_parameters],
+    ggplot2[aes, geom_point, ggplot],
+    insight[get_predicted],
+    magrittr[`%>%`, `%T>%`],
+    MASS[glm.nb],
+    parameters[select_parameters, parameters],
+    performance[
+        check_model,
+        compare_performance, 
+        print_html, 
+        test_performance
+    ],
+    purrr[map],
+    readxl[read_xlsx],
+    recipes[
+        add_role, 
+        all_numeric_predictors, 
+        bake, 
+        prep, 
+        recipe, 
+        step_center, 
+        step_mutate,
+        step_normalize,
+        update_role
+    ],
+    sids_data_wrangling = ./modules/sids_data_wrangling,
+    sids_model_performance = ./modules/sids_model_performance,
+    janitor[clean_names, tabyl],
+    tibble[as_tibble, tibble],
+    tmap[tmap_mode, tm_polygons, tm_shape]
+)
 ```
 
-## Import the data:
+# Import the data:
 
 ```{r}
-raw <- readxl::read_xlsx("data/finaldataforanalysis3_211102.xlsx")
+raw <- 
+    # Parse excel file
+    read_xlsx("data/finaldataforanalysis3_220121.xlsx") %>%
+    # Clean up variability in naming conventions
+    clean_names()
 ```
 
 ## Get census tract populations and spatial features:
 
-```{r echo=TRUE, results=FALSE, message=TRUE, warning=TRUE}
-# tidycensus::load_variables(2019, "acs5", cache = TRUE) %>% view()
-# "B01003_001" : Total Population
-# "B01001_003" : All Males Under 5 yrs
-# "B01001_027" : All Females Under 5 yrs
-# "B06001_002" : All Under 5 yrs
+```{r}
 
-get_coords_and_pop <- function(tibble) {
-    acs_payload <- 
-        get_acs(
-            geography = "tract",
-            variables = "B06001_002",
-            state = "IL",
-            geometry = TRUE,
-            cache_table = TRUE
-        ) %>%
-        filter(.data[["GEOID"]] %in% tibble[["FIPS"]]) 
-    
-    final <-
-        acs_payload %>%
-        mutate(
-            FIPS = as.numeric(.data[["GEOID"]]),
-            centroid = st_centroid(st_geometry(acs_payload)),
-            longitude = st_coordinates(.data[["centroid"]])[,1],
-            latitude = st_coordinates(.data[["centroid"]])[,2],
-            pop_under_five = estimate
-        ) %>%
-        select(
-            FIPS,
-            pop_under_five,
-            longitude,
-            latitude
-        ) %>%
-        full_join(tibble) %>%
-        mutate(est_proportion_SIDS = .data[["Count_Asphyxia"]] / (.data[["pop_under_five"]] / 5))
-    
-    return(final)
-}
+## This is a custom function I wrote that pulls data from the TidyCensus API about
+## population count of people under five years old and about spatial features 
+## for each census tract. I have commented it out and saved the result in an RDS file
+## so as to not make a new call to the API every time this script is run. You can
+## inspect the function definition in the modules folder of the source code.
 
-enriched <- get_coords_and_pop(raw)
+# coords_and_pop_est <- 
+#     sids_data_wrangling$get_coords_and_pop_est(raw)
+# 
+# saveRDS(coords_and_pop_est, "data/coords_and_pop_est.RDS")
 
-df <- enriched %>%
+coords_and_pop_est <- readRDS("data/coords_and_pop_est.RDS")
+
+# Join the population counts to the imported dataframe
+df <- 
+    coords_and_pop_est %>%
+    # Convert to tibble format
     as_tibble() %>%
-    select(-geometry)
-
+    # Drop spatial features
+    select(-geometry) %>%
+    # And join to raw
+    full_join(raw)
 ```
 
-## Generate spatially-clustered folds of data for cross-validation
+# Initial Data Exploration
+
+## Summarize and visualize the primary outcome:
+
+`count_asphyxia` = the count of SIDS-related deaths in each census tract
+
+This is a count-type outcome, which is typically modeled using the Poisson or Negative Binomial distributions. I will be using the Negative Binomial, since the Poisson is limited by having its variance needing to be equal to its mean. 
+
+Here we will visualize the `count_asphyxia` distribution of count frequencies.
 
 ```{r}
-set.seed(326)
-
-folds <- 
-    spatialsample::spatial_clustering_cv(
-        data = as_tibble(enriched),
-        coords = c("latitude", "longitude"),
-        v = 10 # Number of folds to generate
-    )
-
-# This function derived from vignette for the {spatialsample} pkg
-# It visualizes the folds you have generated
-plot_splits <- function(split) {
-    p <- analysis(split) %>%
-        mutate(analysis = "Analysis") %>%
-        bind_rows(assessment(split) %>%
-                      mutate(analysis = "Assessment")) %>%
-        ggplot(aes(longitude, latitude, color = analysis)) + 
-        geom_point(alpha = 0.5) +
-        labs(color = NULL)
-    print(p)
-}
-
-walk(folds$splits, plot_splits)
+plot_histogram(df$count_asphyxia)
 ```
 
-# First Pass Exploration
+As expected, the majority of census tracts do not have any SIDS-related deaths.
 
-##
+It's a little hard to see the tail of the distribution so let's tabulate:
 
 ```{r}
-plot_histogram(df$est_proportion_SIDS)
+tabyl(df$count_asphyxia)
 ```
-
-
-```{r}
-df %>% 
-  count(est_proportion_SIDS == 0) %>% 
-  mutate(prop = n / sum(n))
-```
-
-
-
-## Summarize the primary outcome (count of asphyxia deaths per census tract):
-
-```{r}
-table(enriched$Count_Asphyxia)
-```
-## Visualize the primary outcome:
-
-```{r}
-plot_histogram(enriched$Count_Asphyxia)
-```
-
-```{r}
-plot_histogram(filter(enriched, percent_SIDS > 0)[["percent_SIDS"]])
-```
-
-
-The distribution of outcome data seems consistent with theoretical distributions like the Poisson or negative binomial.
-
-## Visualize the outcome as percentage of estimated population of children under age 1
 
 ## Visualize the outcome on a map:
 
+Here we will take a different tact and visualize the geographic distribution of `count_asphyxia`. Any census tract with at least one death will show up on the map, with darker colors representing higher counts.
+
 ```{r}
-
-test <- enriched %>%
-    filter(Count_Asphyxia > 0) %>%
-    mutate(percentile = percent_rank(percent_SIDS))
-
 tmap_mode("view")
 
-tm_shape(test) +
-    tm_polygons("percentile")
-```
-
-
-```{r}
-asphyxia.sp <- enriched %>%
-    select(Count_Asphyxia) %>%
-    as_Spatial()
-
-weighted_list <- 
-    spdep::poly2nb(asphyxia.sp, queen = TRUE) %>%
-    spdep::nb2listw(style = "W")
-
-asphyxia_lag <- spdep::lag.listw(weighted_list, asphyxia.sp$Count_Asphyxia)
-
-plot( asphyxia_lag ~ asphyxia.sp$Count_Asphyxia, pch=20, asp=1, las=1)
-```
-
-
-```{r}
-MC <- moran.mc(asphyxia.sp$Count_Asphyxia, weighted_list, nsim=599)
-
-MC
-```
-
-
-## Visualize raw predictors:
-
-```{r}
-plot_histogram(select(training, 2, 4:32))
+tm_shape(
+    (coords_and_pop_est %>%
+         full_join(df) %>%
+         select(fips, count_asphyxia) %>%
+         filter(count_asphyxia > 0)
+    )) +
+    tm_polygons(
+        "count_asphyxia", 
+        palette = "-magma",
+        alpha = 0.70
+    )
 ```
 
 
 
-# Predictor candidate selection
+A lot of the census tracts with elevated death counts are concentrated on the South and West sides of the county.
 
-## Explore correlations
+## Predictor Selection
 
-When choosing predictors for our model, we want variables that are as highly correlated with `Count_Asphyxia` as possible, while minimizing the potential for multicollinearity.
+In the sections that follow, I will show my process for selecting which predictor variables will included in the model. At baseline, all models will contain the outcome variable `count_asphyxia` and the variable `pop_under_five`.
+
+`pop_under_five` = The population of people under age five in each census tract.
+
+Including `pop_under_five` in the model will help account for variation in the relative amounts of young children in each tract and how that relates to the number of SIDS-related deaths we predict to be present.
+
+### Explore correlations
+
+When choosing predictors for our model, we want variables that are as highly correlated with `count_asphyxia` as possible, while minimizing the potential for [multicollinearity](https://www.statology.org/multicollinearity-regression/).
+
+Let's start by generating a correlation matrix and filtering for variables that have at least a weak association (> 0.20) with `count_asphyxia`:
 
 ```{r}
-tmwr_cols <- colorRampPalette(c("#91CBD765", "#CA225E"))
-enriched %>%
-    as_tibble() %>%
-    select(-FIPS, -longitude, -latitude, -geometry) %>%
-    cor() %>%
-    corrplot::corrplot(col = tmwr_cols(200), tl.col = "black")
+sids_correlations <- 
+    df %>%
+    select(-fips) %>%
+    relocate(count_asphyxia, .before = pop_under_five) %>%
+    correlate() %>%
+    filter(abs(count_asphyxia) > 0.20) %>%
+    arrange(desc(abs(count_asphyxia)))
+
+sids_correlations
 ```
 
+`publicinsurance` has (just barely) the strongest correlation with `count_asphyxia`. 
 
-Let's start by generating a correlation matrix:
+`publicinsurance` = The percentage of residents in each census tract who are on public insurance
+
+Let's visualize the relationship:
 
 ```{r}
-correlations <- training %>%
-    select(-FIPS) %>%
-    relocate(Count_Asphyxia, .before = population) %>%
-    corrr::correlate()
-
-correlations
+plot(cor_test(df, "count_asphyxia", "publicinsurance"))
 ```
 
-
-
-
-Now filter for variables that have at least a weak correlation (> 0.20) with `Count_Asphyxia`:
+In order to minimize multicollinearity with additional predictor variables, let's select for variables that still have some degree of correlation with `count_asphyxia`, but have no more than weak correlation (< 0.5) with `publicinsurance`:
 
 ```{r}
-asphyxia_correlations <-
-    correlations %>%
-    filter(abs(Count_Asphyxia) > 0.20) %>%
-    arrange(desc(abs(Count_Asphyxia)))
-
-asphyxia_correlations
-```
-
-`publicinsurance` has (just barely) the strongest correlation with `Count_Asphyxia`. Let's visualize the relationship:
-
-```{r}
-plot(cor_test(training, "Count_Asphyxia", "publicinsurance"))
-```
-
-In order to minimize multicollinearity, let's select for variables that still have some degree of correlation with `Count_Asphyxia`, but have no more than weak correlation (< 0.5) with `publicinsurance`:
-
-```{r}
-asphyxia_correlations %>%
-    filter(abs(Count_Asphyxia) > 0.20) %>%
+sids_correlations %>%
+    filter(abs(count_asphyxia) > 0.20) %>%
     filter(abs(publicinsurance) < 0.5)
 ```
 
-This just leaves the count of opioid deaths per census tract:
+This just leaves `count_opioid_death`.
+
+`count_opioid_death` = count of opioid-related deaths in each census tract.
 
 ```{r}
-plot(cor_test(training, "Count_Asphyxia", "Count_OPIOID_Death"))
+plot(cor_test(df, "count_asphyxia", "count_opioid_death"))
 ```
 
 There's a large outlier of many opioid deaths in an area with no asphyxiation deaths, but otherwise, there does seem to be a positive trend.
 
-To fill out our modeling, we wil also try another four variables that correlate with `Count_Asphyxia`. These being `white`, `incomegt75`, `SVI_HouseholdCompositionDisability`, and `PE_marriedfemales`. I left out `black` and `private` because these are definitely co-linear with `white` and `publicinsurance` respectively. Those with a discerning eye will note that earlier I added census tract population count to our data set as a potential control variable, but there does not seem to be a meaningful correlation between `Count_Asphyxia` and `population`.
+To fill out our modeling, we will try another four variables that correlate with `count_asphyxia`. These being `white`, `svi_household_composition_disability`, `incomegt75`, and `pe_marriedfemales`. I left out `black` and `privateinsurance` because these are definitely co-linear with `white` and `publicinsurance` respectively.
 
-Here are summary statistics of our candidate predictors:
+`white` = The percentage of residents in each census tract who identify their race as White 
+
+`svi_household_composition_disability` = Percentile ranking for each census tract on the [Social Vulnerability Index](https://www.atsdr.cdc.gov/placeandhealth/svi/documentation/pdf/SVI2018Documentation_01192022_1.pdf) for Household Composition & Disability, which is a mash-up of information about households that include people older than 65, people younger than 17, people with disabilities, and/or single-parents
+
+`incomegt75` = The percentage of residents in each census tract whose income are greater than the 75th percentile
+
+`pe_marriedfemales` = The percentage of female residents that are married in each census tract
+
+Here are the summary statistics and visualized distributions of our candidate predictors:
 
 ```{r}
-training %>%
+df %>%
     select(
-        Count_OPIOID_Death, 
-        publicinsurance, 
-        white, 
-        incomegt75, 
-        SVI_HouseholdCompositionDisability, 
-        PE_marriedfemales
-    ) %>%
+        pop_under_five,
+        publicinsurance,
+        count_opioid_death,
+        white,
+        svi_household_composition_disability,
+        incomegt75,
+        pe_marriedfemales
+    ) %T>%
+    plot_histogram() %>%
     summary()
-```
-
-# Pre-processing
-
-As alluded to earlier, we will be using Poisson regression as the initial model of consideration. According to [Appendix A](https://www.tmwr.org/pre-proc-table.html) of @kuhnTidyModeling, the recommended pre-processing steps for Poisson regression are dummy variable generation, removal of columns with single unique values, imputation for missing data, de-correlation, and possibly transformation.
-
-Many of these steps are not necessary for our data set. Because we do not have categorical predictors, we do not need to perform dummy variable generation or removal of columns with single unique variables. Because we do not have any missing data, we do not need to perform imputation. That leaves transformation and de-correlation.
-
-## Transformation
-
-### Centering
-
-For ease of intercept interpretation, we will center the variables whose minimums are greater than zero:
-
-```{r}
-glm_training <-
-    training %>%
-    select(
-        FIPS,
-        Count_Asphyxia, 
-        publicinsurance, 
-        Count_OPIOID_Death,
-        white, 
-        incomegt75, 
-        SVI_HouseholdCompositionDisability, 
-        PE_marriedfemales
-    ) %>%
-    mutate(
-        publicinsurance_cen = publicinsurance - mean(publicinsurance),
-        incomegt75_cen = incomegt75 - mean(incomegt75),
-        SVI_HouseholdCompositionDisability_cen = SVI_HouseholdCompositionDisability - mean(SVI_HouseholdCompositionDisability),
-        PE_marriedfemales_cen = PE_marriedfemales - mean(PE_marriedfemales)
-    )
-```
-
-## De-Correlation
-
-While selecting our variables, we have done our best to minimize multicollinearity. However, eventually this analysis will also include principal component analysis as a means to potentially boost model performance.
-
-```{r}
-umap_recipe <- 
-    recipe(Count_Asphyxia ~ ., data = df) %>%
-    update_role(FIPS, new_role = "ID") %>%
-    update_role(
-        longitude, latitude, est_percent_SIDS,
-        new_role = "not_in_model"
-    ) %>%
-    step_normalize(all_numeric_predictors()) %>%
-    embed::step_umap(all_predictors())
     
-umap_prep <- prep(umap_recipe)
-    
-umap_bake <- bake(umap_prep, new_data = df)
-
-umap_bake %>%
-  ggplot(aes(UMAP1, UMAP2)) +
-  geom_point(alpha = 0.5, size = 2)+
-  labs(color = NULL) +
-  theme_minimal()
-
-poisson_recipe <-
-    recipe(Count_Asphyxia ~ UMAP1 + UMAP2, data = umap_bake)
-
-poisson_model <-
-    poissonreg::poisson_reg()
-
-umap_poisson_workflow <-
-    workflow() %>%
-    add_recipe(poisson_recipe) %>%
-    add_model(poisson_model) %>%
-    fit(umap_bake)
-
-umap_poisson_predict <- 
-    predict(umap_poisson_workflow, umap_bake) %>%
-    bind_cols(.obs = umap_bake$Count_Asphyxia)
-
-
 ```
 
+# Pre-Processing
+
+Now that we have our candidate predictors and outcome selected, we'll determine if our data needs any pre-processing before using it to fit models.
+
+[Appendix A](https://www.tmwr.org/pre-proc-table.html) of @kuhnTidyModeling provides guidance for which types of pre-processing are useful for different types of models. It does not specifically name Negative Binomial models, but its suggestions for Poisson models are dummy variable generation, removal of columns with single unique values, and imputation for missing data, de-correlation. 
+
+None of these steps are necessary for our data set. Because we do not have categorical predictors, we do not need to perform dummy variable generation or removal of columns with single unique values. Because we do not have any missing data, we do not need to perform imputation. We have done our best to minimize multi-collinearity, but will not go as far as [dimensionality reduction](https://blog.dataiku.com/dimensionality-reduction-how-it-works-in-plain-english) since we want to retain the original variables for use in interpretation of the model. 
 
 # Model Development
 
-Let's build up 6 models that use step-wise additions of the predictors of interest. We'll select a final model, by comparing their respective performance metrics:
+## Formula Permutations
+
+### Main Effects
+
+The next step in modeling will be to finalize our selection of predictors from the short-list of candidates identified earlier. 
+
+To automate the process we will make a nested list of formulas for predictor variables of interest. We'll apply each of those formulas to a negative binomial model function, then compare performance metrics for each of the permutations.
 
 ```{r}
-formulas <- list(
-        one_var = Count_Asphyxia ~ publicinsurance_cen,
-        two_vars = Count_Asphyxia ~ publicinsurance_cen + Count_OPIOID_Death,
-        three_vars = Count_Asphyxia ~ publicinsurance_cen + Count_OPIOID_Death + white,
-        four_vars = Count_Asphyxia ~ publicinsurance_cen + Count_OPIOID_Death + white + incomegt75_cen,
-        five_vars = Count_Asphyxia ~ publicinsurance_cen + Count_OPIOID_Death + white + incomegt75_cen + SVI_HouseholdCompositionDisability_cen,
-        six_vars = Count_Asphyxia ~ publicinsurance_cen + Count_OPIOID_Death + white + incomegt75_cen + SVI_HouseholdCompositionDisability_cen + PE_marriedfemales_cen
+# List out nested permutations of the models
+nb_main_effects_models <-
+    list(
+        one_var = 
+            glm.nb(
+                count_asphyxia ~ pop_under_five,
+                data = df
+            ),
+        two_var = 
+            glm.nb(
+                count_asphyxia ~ pop_under_five + publicinsurance,
+                data = df
+            ),
+        three_var = 
+            glm.nb(
+                count_asphyxia ~ pop_under_five + publicinsurance + count_opioid_death,
+                data = df
+            ),
+        four_var = 
+            glm.nb(
+                count_asphyxia ~ pop_under_five + publicinsurance + count_opioid_death + black,
+                data = df
+            ),
+        five_var = 
+            glm.nb(
+                count_asphyxia ~ pop_under_five + publicinsurance + count_opioid_death + white + svi_household_composition_disability,
+                data = df
+            ),
+        six_var = 
+            glm.nb(
+                count_asphyxia ~ pop_under_five + publicinsurance + count_opioid_death + white + svi_household_composition_disability + incomegt75,
+                data = df
+            ),
+        seven_var = 
+            glm.nb(
+                count_asphyxia ~ pop_under_five + publicinsurance + count_opioid_death + white + svi_household_composition_disability + incomegt75 + pe_marriedfemales,
+                data = df
+            )
+    )
+
+# Compare performance metrics for the models
+compare_performance(nb_main_effects_models, rank = TRUE) %>% print_html()
+```
+
+
+The performance package automatically decides which performance metrics to compute based on the type of model its given. If you set the rank option as TRUE like I have, it will also rank the models based on a composite score of performance metrics. Eye-balling the results, its selection of the four-predictor model seems sensible given that it is tied for best Nagelkerke's R^2 value (explained variation), has comparable RMSE (precision), and the most weight for both AIC and BIC metrics (goodness of fit estimates for out-of-sample predictions).
+
+Let's check out info about the predictor parameters.
+
+```{r}
+parameters(nb_main_effects_models$four_var, exponentiate = TRUE)
+```
+All of the predictors are statistically significant on the Wald test, but its hard to interpret their effect sizes using each variable's raw units. Let's try evaluating when the predictor variables are standardized to have means of zero and standard deviations of one.
+
+```{r}
+standardize_parameters(nb_main_effects_models$four_var, exponentiate = TRUE)
+```
+All these incident rate ratios are sizable and in the expected directions. 
+
+### Interaction Terms
+
+Next we will assess whether it's helpful to add interaction terms. 
+
+The {parameters} package has an algorithm for automatically checking which predictors are useful to include in the model. Let's see what it chooses when generating every possible interaction term as a candidate.
+
+```{r}
+nb_with_auto_selected_interacts <-
+    glm.nb(
+        count_asphyxia ~ (pop_under_five + publicinsurance + count_opioid_death + white)^2,
+        data = df
+    ) %>% select_parameters()
+
+# Generate a table of the model parameters
+parameters(nb_with_auto_selected_interacts, exponentiate = TRUE)
+```
+
+The algorithm has retained all main effect terms and suggests we should include interaction terms for `count_opioid_death` * `white` and `publicinsurance` * `white`. It is feasible to think that the amount of white people in a census tract would modulate the association of the count of opioid deaths and the amount of public insurance holders with the outcome. That said, the absolute coefficient for `publicinsurance` * `white` is small and it's p-value is non-significant. 
+
+Let's compare performance for this model against the main effects model and a model with just the `count_opioid_death` * `white` term.
+
+```{r}
+nb_with_one_interact <-
+    glm.nb(
+        count_asphyxia ~ pop_under_five + publicinsurance + count_opioid_death + white + count_opioid_death:white,
+        data = df
+    )
+
+compare_performance(
+    just_main_effects = nb_main_effects_models$four_var, 
+    one_interact = nb_with_one_interact, 
+    two_interacts = nb_with_auto_selected_interacts,
+    rank = TRUE
+) %>% print_html()
+```
+At first blush, the table says using both interaction terms makes the best model, but the differences between the actual metrics seem negligible. Let's do a formal test for difference between the models.
+
+```{r}
+test_performance(
+    nb_main_effects_models$four_var, 
+    nb_with_one_interact, 
+    nb_with_auto_selected_interacts
+) 
+```
+Consistent with our intuition, the observed data are computed as 57 time more probable for the model with one interaction term compared to the main effects model, but there is no boost in probability from adding a second interaction term. 
+
+Here are the estimated standardized effect sizes for terms in our final negative binomial model:
+
+```{r}
+# Show parameter effect size estimates
+standardize_parameters(nb_with_one_interact, exponentiate = TRUE)
+```
+
+
+```{r}
+standardize_parameters(nb_main_effects_models$four_var, exponentiate = TRUE)
+```
+```{r}
+parameters(nb_main_effects_models$four_var, exponentiate = TRUE)
+```
+```{r}
+sids_model_performance$make_rootogram(nb_main_effects_models$four_var)
+```
+
+
+# Model Assessment
+
+## Visually assessing the model fit
+
+So far, we've been using performance metrics to assess fit, but now let's visualize the fit as well. We'll use a "[hanging rootogram](https://datavizproject.com/data-type/rootogram/)". Let's break down the components of a rootogram:
+
+1. The red curve with dots represents the model's expected frequency for each count value.
+2. The bars represents the observed frequency for each count value.
+3. In this visualization, we imagine that we are pinning the top of each bar (observed frequency) to the corresponding dot on the red curve (expected frequency).
+4. If a bar hangs from the pin all the way down to the x-axis (zero on the y-axis), that means that there is no difference between the expected and observed frequencies for that count value (perfect prediction).
+5. If a bar hangs below the x-axis, the model underestimated the expected frequency for that count value. Conversely, if a bar hangs above the x-axis, the model over-estimated.
+
+This would be a perfect model for our observed counts:
+
+```{r}
+perfect_model <- tibble(
+    .obs = df$count_asphyxia,
+    .pred = df$count_asphyxia
 )
 
+sids_model_performance$make_rootogram(perfect_model)
 ```
 
-## Develop Poisson regression models
-
-Train poisson models on the formulas:
+And this is what our negative binomial model looks like:
 
 ```{r}
-poisson_models <- map(
-    .x = formulas,
-    .f = ~ glm(formula = .x, family = poisson(), data = glm_training)
-)
+sids_model_performance$make_rootogram(nb_with_one_interact)
 ```
 
-```{r}
-compare_performance(poisson_models) %>% print_html()
-```
+The rootogram tells us that that the model is slightly over-predicting the frequency of low counts (0-1) and unable to predict counts over 2.
 
-Eye-balling the results, `poisson_4` seems like a good candidate since it has the best AIC value (best relative fit while adjusting for number of predictors) and is tied for best adjusted R-squared (quantification of fit) and RMSE (precision). Let's see if our intuition matches with a ranking algorithm:
+## Mapping the residuals
 
 ```{r}
-compare_performance(poisson_models, rank = TRUE) %>% print_html()
-```
-
-It does! Let's visualize the fit with a rootogram:
-
-```{r}
-make_rootogram <- function(model) {
-    
-    if(any(class(model) %in% "glm")){
-        predictions <- 
-            as_tibble(round(model$fitted.values)) %>%
-            group_by(value) %>%
-            summarize(n = n()) %>%
-            pull("n")
-        observations <-
-            model$y
-    } else if(any(class(model) %in% "tbl_df")) {
-        predictions <-
-            as_tibble(round(model$.pred)) %>%
-            group_by(value) %>%
-            summarize(n = n()) %>%
-            pull("n")
-        observations <- model$.obs
-    }
-    
-    diff <- length(table(observations)) - length(predictions)
-    print(diff)
-
-    if(diff > 0){
-        predictions <- c(predictions, rep(0, diff))
-    }
-    
-    return(vcd::rootogram(table(observations), predictions))
-}
-
-make_rootogram(poisson_models[[4]])
-
-make_rootogram(umap_poisson_predict)
-```
-
-We see that our Poisson model does a decent job approximating counts of 0 and 1 for `Count_Asphyxia`, but under-counts anything above 1.
-
-This problem is called overdispersion and is not uncommon when modeling discrete count data. Overdispersion means that the observed data shows more variability than expected from the assumed distribution. Let's do a formal test for it:
-
-```{r}
-check_overdispersion(poisson_4)
-```
-While not terrible, overdispersion is indeed present. We will likely get a better fit using a different assumed distribution of the outcome.
-
-For completeness, let's check other indicators for validity of our model assumptions:
-
-```{r}
-check_model(poisson_4)
-```
-
-We see here we also have issues with heteroskedascity, with influential observations, and with normality of the residuals. This provides further evidence that we should explore other means of modeling the outcome.
-
-## Develop Quasi-Poisson Models
-
-```{r}
-qpoisson_2 <- glm(Count_Asphyxia ~ publicinsurance_cen + Count_OPIOID_Death, quasipoisson(), data = glm_training)
-
-qpoisson_3 <- glm(Count_Asphyxia ~ publicinsurance_cen + Count_OPIOID_Death + white, family = quasipoisson(), data = glm_training)
-
-qpoisson_4 <- glm(Count_Asphyxia ~ publicinsurance_cen + Count_OPIOID_Death + white + incomegt75_cen, family = quasipoisson(), data = glm_training)
-
-qpoisson_5 <- glm(Count_Asphyxia ~ publicinsurance_cen + Count_OPIOID_Death + white + incomegt75_cen + SVI_HouseholdCompositionDisability_cen, family = quasipoisson(), data = glm_training)
-```
-
-```{r}
-compare_performance(qpoisson_2, qpoisson_3, qpoisson_4, qpoisson_5, rank = TRUE) %>% print_html()
-```
-
-```{r}
-qpoisson_4_pred_freq <-get_pred_freq_vector(qpoisson_4)
-
-vcd::rootogram(table(qpoisson_4$y), qpoisson_4_pred_freq)
-```
-
-```{r}
-check_model(qpoisson_4)
-```
-
-## Develop Negative Binomial Model
-
-```{r}
-binom_3 <- MASS::glm.nb(Count_Asphyxia ~ publicinsurance_cen + Count_OPIOID_Death + white, link = log, data = glm_training)
-
-binom_4 <- MASS::glm.nb(Count_Asphyxia ~ publicinsurance_cen + Count_OPIOID_Death + white + incomegt75_cen, link = log, data = glm_training)
-
-binom_5 <- MASS::glm.nb(Count_Asphyxia ~ publicinsurance_cen + Count_OPIOID_Death + white + incomegt75_cen + SVI_HouseholdCompositionDisability_cen, link = log, data = glm_training)
-```
-
-```{r}
-compare_performance(binom_3, binom_4, binom_5, rank = TRUE) %>% print_html()
-```
-
-```{r}
-make_rootogram(binom_4)
-```
-
-
-```{r}
-check_model(binom_4)
-```
-
-```{r}
-compare_performance(binom_4, poisson_4, rank = TRUE) %>% print_html()
-```
-
-### Export model predictions and observations
-
-```{r}
-neg_binomial_export <-
-    bind_cols(
-        glm_training[,c("FIPS", "Count_Asphyxia", "publicinsurance", "Count_OPIOID_Death", "white", "incomegt75")],
-        raw_predictions = binom_4$fitted.values,
-        rounded_predictions = round(binom_4$fitted.values)
-    ) %>%
-    relocate(raw_predictions, rounded_predictions, .after = Count_Asphyxia)
-
-xlsx::write.xlsx(neg_binomial_export, "data/negative_binomial_prediction_model_2021_11_23.xlsx")
-```
-
-
-Data Dictionary:
-
-- FIPS: Census Tract ID
-- Count_Asphyxia: Count of asphyxia-related deaths in that census tract (observed outcome)
-- raw_predictions: Output of prediction model for counts of asphyxia-related deaths
-- rounded_predictions: The raw predictions rounded into discrete count values
-- publicinsurance: Percent of people in that census tract on public health insurance (predictor)
-- Count_OPIOID_Death: Count of opioid-related deaths in that census tract (predictor)
-- white: Percent of people in that census tract who self-identify as white (predictor)
-- incomegt75: Percent of people in that census tract with income greater than the 75th percentile (predictor)
-
-## Try out zero-inflated models
-
-```{r}
-formula_4 <- Count_Asphyxia ~ publicinsurance_cen + Count_OPIOID_Death + white + incomegt75_cen
-
-zip_4 <- pscl::zeroinfl(formula_4, data = glm_training)
-
-zinb_4 <- pscl::zeroinfl(formula_4, dist = "negbin", data = glm_training)
-```
-
-```{r}
-compare_performance(poisson_4, binom_4, zip_4, zinb_4) %>% print_html()
-```
-
-## Develop Random Forest Model
-
-```{r}
-preds <- c("publicinsurance_cen", "Count_OPIOID_Death", "white", "incomegt75_cen")
-
-library(tidymodels)
-
-rf_pred_obs <- 
-    rand_forest(mode = "regression") %>%
-    set_engine("ranger") %>%
-    fit_xy(
-        x = glm_training[, preds],
-        y = glm_training$Count_Asphyxia
-     ) %>%
-    predict(glm_training) %>%
-    bind_cols(.obs = glm_training$Count_Asphyxia)
-```
-
-```{r}
-rf_pred_tbl <- 
-        as_tibble(round(rf_preds$.pred)) %>%
-        group_by(value) %>%
-        summarize(n = n())
-
-rf_pred_freq_vector <- c(rf_pred_tbl$n, rep(0, 2))
-
-vcd::rootogram(table(glm_training$Count_Asphyxia), rf_pred_freq_vector)
+tm_shape(
+    coords_and_pop_est %>%
+        full_join(df) %>%
+        full_join(
+            augment(
+                nb_with_one_interact, 
+                type.residuals = "pearson")
+        ) %>%
+        select(fips, .std.resid) %>%
+        mutate(.std.resid = -1 * .std.resid) %>%
+        filter(abs(.std.resid) > 1)
+    ) +
+    tm_polygons(
+        ".std.resid", 
+        palette = "Spectral",
+        alpha = 0.7
+    )
 ```
 

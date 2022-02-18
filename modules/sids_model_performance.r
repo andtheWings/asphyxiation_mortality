@@ -10,7 +10,7 @@ make_rootogram <- function(model) {
     )
     
     # Operations for a glm-generated object
-    if(any(class(model) %in% "glm")){
+    if(any(class(model) %in% c("negbin", "zeroinfl"))){
         predictions <- 
             # Pull predictions from the object and round them to closest integer
             as_tibble(round(model$fitted.values)) %>%
@@ -23,10 +23,11 @@ make_rootogram <- function(model) {
         # Pull observations from the object
         observations <-
             model$y
-        # Operations for a tidymodels generated object
+        
+    # Operations for a tidymodels generated object
     } else if(any(class(model) %in% "tbl_df")) {
         predictions <-
-            # Pull predictions from the object and rount them to closest integer
+            # Pull predictions from the object and round them to closest integer
             as_tibble(round(model$.pred)) %>%
             # Group by each count
             group_by(value) %>%

@@ -1,0 +1,382 @@
+---
+title: "Scrap Analyses"
+author: "Daniel P. Riggins, MD"
+date: "2/4/2022"
+output: html_document
+---
+
+
+```{r}
+nb_zero_inflated <- 
+    pscl::zeroinfl(
+        count_asphyxia ~ pop_under_five + publicinsurance + count_opioid_death + white + count_opioid_death:white, 
+        dist = "negbin", 
+        data = df
+    )
+
+nb_hurdle <- 
+    pscl::hurdle(
+        count_asphyxia ~ pop_under_five + publicinsurance + count_opioid_death + white + count_opioid_death:white, 
+        dist = "negbin", 
+        zero.dist = "binomial",
+        data = df
+    )
+
+compare_performance(
+    nb_plain = nb_with_one_interact,
+    nb_zero_inflated = nb_zero_inflated,
+    nb_hurdle = nb_hurdle,
+    rank = TRUE
+)
+```
+
+```{r}
+test_performance(
+    nb_with_one_interact,
+    nb_zero_inflated,
+    nb_hurdle
+)
+```
+
+
+
+
+```{r}
+ggplot(
+    data = augment(
+        models$nb$main_effects$four_var, standardized_predictors_df,
+        type.predict = "response"
+    ),
+    mapping = aes(x = .fitted, y = .resid) 
+) + geom_point()
+```
+
+```{r}
+boot::glm.diag.plots(models$nb$main_effects$four_var)
+```
+
+
+
+
+
+```{r}
+perf$make_rootogram(models$nb$with_interactions$one_interaction)
+```
+
+
+
+```{r}
+compare_performance(nb_standard, nb_zero_inflated, nb_hurdle)
+```
+```{r}
+test_performance(nb_standard, nb_zero_inflated, nb_hurdle)
+```
+
+
+```{r}
+nb_resids <- 
+    tibble(
+        observed = df$count_asphyxia,
+        predicted = get_predicted(nb_interact_models$one_interact),
+        residuals = predicted - observed
+    )
+
+
+```
+
+```{r}
+df_and_geo$residuals <- nb_resids$residuals
+
+tm_shape(filter(df_and_geo, abs(residuals) > 1)) +
+    tm_polygons("residuals", alpha = 0.6)
+```
+
+Let's build up 6 models that use step-wise additions of the predictors of interest. We'll select a final model, by comparing their respective performance metrics:
+
+## Develop Random Forest Model
+
+```{r}
+rf_model <-
+    parsnip::rand_forest(
+        mode = "regression",
+        engine = "ranger"
+    )
+
+standardized_final_vars_recipe <-
+    recipe(
+        count_asphyxia ~ pop_under_five + publicinsurance + count_opioid_death + white, 
+        data = df
+    ) %>%
+    recipes::step_interact(terms = ~ count_opioid_death:white) %>%
+    recipes::step_normalize(all_numeric_predictors())
+
+standardized_final_vars_df <-
+    standardized_final_vars_recipe %>%
+    prep() %>%
+    bake(new_data = NULL)
+
+rf_workflow <-
+    workflows::workflow() %>%
+    workflows::add_recipe(standardized_final_vars_recipe) %>%
+    workflows::add_model(rf_model)
+
+rf_fit <-
+    parsnip::fit(rf_workflow, data = df) 
+
+rf_og <-
+    ranger::ranger(
+        count_asphyxia ~ pop_under_five + publicinsurance + count_opioid_death + white,
+        data = standardized_final_vars_df
+    )
+
+
+
+rf_pred_obs_resid <-
+    rf_fit %>%
+    predict(df) %>%
+    dplyr::bind_cols(
+        .obs = df$count_asphyxia
+    ) %>%
+    mutate(.resid = .pred - .obs)
+    
+perf$make_rootogram(rf_pred_obs_resid)
+
+geom_residuals <-
+    enriched %>%
+    bind_cols(residuals = rf_pred_obs_resid$.resid) 
+
+tm_shape(geom_residuals) +
+    tm_polygons(
+        "residuals",
+        midpoint = 0,
+        alpha = 0.6
+    )
+
+compare_performance(rf_og, nb_standard)
+
+
+```
+
+## Generate spatially-clustered folds of data for cross-validation
+
+```{r}
+set.seed(326)
+
+folds <- 
+    spatialsample::spatial_clustering_cv(
+        data = as_tibble(enriched),
+        coords = c("latitude", "longitude"),
+        v = 10 # Number of folds to generate
+    )
+
+# This function derived from vignette for the {spatialsample} pkg
+# It visualizes the folds you have generated
+plot_splits <- function(split) {
+    p <- analysis(split) %>%
+        mutate(analysis = "Analysis") %>%
+        bind_rows(assessment(split) %>%
+                      mutate(analysis = "Assessment")) %>%
+        ggplot(aes(longitude, latitude, color = analysis)) + 
+        geom_point(alpha = 0.5) +
+        labs(color = NULL)
+    print(p)
+}
+
+walk(folds$splits, plot_splits)
+```
+
+
+
+
+```{r}
+# Generate pre-processed data set
+standardized_predictors_df <-
+    # Initialize a pre-processing recipe
+    recipe(count_asphyxia ~ ., data = df) %>%
+    # Assigns the fips variable to the ID role
+    update_role(fips, new_role = "id") %>%
+    # Apply standardizing transformation to all numeric predictors
+    step_normalize(all_numeric_predictors()) %>%
+    # Prep the pre-processing recipe
+    prep() %>%
+    # And generate the pre-processed data
+    bake(new_data = NULL)
+```
+
+# Spatial Autocorrelation
+
+```{r}
+asphyxia.sp <- enriched %>%
+    select(Count_Asphyxia) %>%
+    as_Spatial()
+
+weighted_list <- 
+    spdep::poly2nb(asphyxia.sp, queen = TRUE) %>%
+    spdep::nb2listw(style = "W")
+
+asphyxia_lag <- spdep::lag.listw(weighted_list, asphyxia.sp$Count_Asphyxia)
+
+plot( asphyxia_lag ~ asphyxia.sp$Count_Asphyxia, pch=20, asp=1, las=1)
+```
+
+```{r}
+MC <- moran.mc(asphyxia.sp$Count_Asphyxia, weighted_list, nsim=599)
+
+MC
+```
+
+# Correlation
+
+```{r}
+tmwr_cols <- colorRampPalette(c("#91CBD765", "#CA225E"))
+enriched %>%
+    as_tibble() %>%
+    select(-FIPS, -longitude, -latitude, -geometry) %>%
+    cor() %>%
+    corrplot::corrplot(col = tmwr_cols(200), tl.col = "black")
+```
+
+```{r}
+plot(cor_test(training, "Count_Asphyxia", "publicinsurance"))
+```
+
+## Develop Poisson regression models
+
+Train poisson models on the formulas:
+
+```{r}
+poisson_models <- map(
+    .x = formulas,
+    .f = ~ glm(formula = .x, family = poisson(), data = glm_training)
+)
+```
+
+```{r}
+compare_performance(poisson_models) %>% print_html()
+```
+
+Eye-balling the results, `poisson_4` seems like a good candidate since it has the best AIC value (best relative fit while adjusting for number of predictors) and is tied for best adjusted R-squared (quantification of fit) and RMSE (precision). Let's see if our intuition matches with a ranking algorithm:
+
+```{r}
+compare_performance(poisson_models, rank = TRUE) %>% print_html()
+```
+
+It does! Let's visualize the fit with a rootogram:
+
+```{r}
+```
+
+We see that our Poisson model does a decent job approximating counts of 0 and 1 for `count_asphyxia`, but under-counts anything above 1.
+
+This problem is called overdispersion and is not uncommon when modeling discrete count data. Overdispersion means that the observed data shows more variability than expected from the assumed distribution. Let's do a formal test for it:
+
+```{r}
+check_overdispersion(poisson_4)
+```
+While not terrible, overdispersion is indeed present. We will likely get a better fit using a different assumed distribution of the outcome.
+
+For completeness, let's check other indicators for validity of our model assumptions:
+
+```{r}
+check_model(poisson_4)
+```
+
+We see here we also have issues with heteroskedascity, with influential observations, and with normality of the residuals. This provides further evidence that we should explore other means of modeling the outcome.
+
+## Develop Quasi-Poisson Models
+
+```{r}
+qpoisson_2 <- glm(count_asphyxia ~ publicinsurance_cen + Count_OPIOID_Death, quasipoisson(), data = glm_training)
+
+qpoisson_3 <- glm(count_asphyxia ~ publicinsurance_cen + Count_OPIOID_Death + white, family = quasipoisson(), data = glm_training)
+
+qpoisson_4 <- glm(count_asphyxia ~ publicinsurance_cen + Count_OPIOID_Death + white + incomegt75_cen, family = quasipoisson(), data = glm_training)
+
+qpoisson_5 <- glm(count_asphyxia ~ publicinsurance_cen + Count_OPIOID_Death + white + incomegt75_cen + SVI_HouseholdCompositionDisability_cen, family = quasipoisson(), data = glm_training)
+```
+
+```{r}
+compare_performance(qpoisson_2, qpoisson_3, qpoisson_4, qpoisson_5, rank = TRUE) %>% print_html()
+```
+
+```{r}
+qpoisson_4_pred_freq <-get_pred_freq_vector(qpoisson_4)
+
+vcd::rootogram(table(qpoisson_4$y), qpoisson_4_pred_freq)
+```
+
+```{r}
+check_model(qpoisson_4)
+
+## Bayesian Zero-Inflated Beta Regression Model
+```
+
+```{r}
+library(brms)
+model_beta_zi_int_only <- brm(
+  bf(est_proportion_SIDS ~ UMAP1 + UMAP2,
+     phi ~ UMAP1 + UMAP2,
+     zi ~ UMAP1 + UMAP2),
+  data = filter(umap_bake, est_proportion_SIDS <= 1),
+  family = zero_inflated_beta(),
+  chains = 4, iter = 2000, warmup = 1000,
+  cores = 4, seed = 1234,
+  backend = "cmdstanr"
+)
+
+predictions <- as_tibble(predict(model_beta_zi_int_only))
+plot_histogram(predictions$Estimate)
+```
+
+## De-Correlation
+
+While selecting our variables, we have done our best to minimize multicollinearity. However, eventually this analysis will also include principal component analysis as a means to potentially boost model performance.
+
+```{r}
+umap_recipe <- 
+    recipe(count_asphyxia ~ ., data = df) %>%
+    update_role(FIPS, new_role = "ID") %>%
+    update_role(
+        longitude, latitude, est_proportion_SIDS,
+        new_role = "not_in_model"
+    ) %>%
+    step_normalize(all_numeric_predictors()) %>%
+    embed::step_umap(all_predictors())
+    
+umap_prep <- prep(umap_recipe)
+    
+umap_bake <- bake(umap_prep, new_data = df)
+
+umap_bake %>%
+  ggplot(aes(UMAP1, UMAP2)) +
+  geom_point(alpha = 0.5, size = 2)+
+  labs(color = NULL) +
+  theme_minimal()
+```
+
+
+### Export model predictions and observations
+
+```{r}
+neg_binomial_export <-
+    bind_cols(
+        glm_training[,c("FIPS", "count_asphyxia", "publicinsurance", "Count_OPIOID_Death", "white", "incomegt75")],
+        raw_predictions = binom_4$fitted.values,
+        rounded_predictions = round(binom_4$fitted.values)
+    ) %>%
+    relocate(raw_predictions, rounded_predictions, .after = count_asphyxia)
+
+xlsx::write.xlsx(neg_binomial_export, "data/negative_binomial_prediction_model_2021_11_23.xlsx")
+```
+
+
+Data Dictionary:
+
+- FIPS: Census Tract ID
+- count_asphyxia: Count of asphyxia-related deaths in that census tract (observed outcome)
+- raw_predictions: Output of prediction model for counts of asphyxia-related deaths
+- rounded_predictions: The raw predictions rounded into discrete count values
+- publicinsurance: Percent of people in that census tract on public health insurance (predictor)
+- Count_OPIOID_Death: Count of opioid-related deaths in that census tract (predictor)
+- white: Percent of people in that census tract who self-identify as white (predictor)
+- incomegt75: Percent of people in that census tract with income greater than the 75th percentile (predictor)
