@@ -3,8 +3,18 @@
 .RData
 .Ruserdata
 
+_book/
+
+_bookdown_files/
+
 data/
 
-asphyxiation_mortality_scratch.R
+media/cook_county_sids_deaths_files/
 
-*.html
+media/cook_county_sids_deaths.html
+
+rsconnect/
+
+cook_county_sids_mortality.rds
+
+render1c0e93d133415.rds

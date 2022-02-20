@@ -1,0 +1,72 @@
+# Import the Data
+
+## Dependencies
+
+```{r}
+# Load needed modules
+box::use(
+    dplyr[full_join, glimpse, select],
+    janitor[clean_names],
+    magrittr[`%>%`],
+    readxl[read_xlsx],
+    sf[st_set_geometry],
+    sids_data_wrangling = ./modules/sids_data_wrangling,
+    tibble[as_tibble]
+)
+```
+
+## Initial import
+
+First, read in the excel file that was originally shared for this project:
+
+```{r}
+raw <- 
+    # Parse excel file
+    read_xlsx("data/finaldataforanalysis3_220121.xlsx") %>%
+    # Clean up variability in naming conventions
+    clean_names()
+```
+
+## Join census tract populations
+
+Then, import census population data:
+
+```{r}
+## This is a custom function I wrote that 
+## pulls data from the TidyCensus API about
+## the population count of people under five 
+## years old and about spatial features 
+## for each census tract. I have commented it 
+## out and saved the result in an RDS file
+## so as to not make a new call to the API 
+## every time this script is run. You can
+## inspect the function definition in the 
+## modules folder of the source code.
+
+# coords_and_pop_est <- 
+#     sids_data_wrangling$get_coords_and_pop_est(raw)
+# 
+# saveRDS(coords_and_pop_est, "data/coords_and_pop_est.RDS")
+
+coords_and_pop_est <- readRDS("data/coords_and_pop_est.RDS")
+
+# Join the population counts to the imported dataframe
+df <- 
+    coords_and_pop_est %>%
+    # Drop geospatial features
+    st_set_geometry(NULL) %>%
+    # Convert to tibble format
+    as_tibble() %>%
+    # And join to raw
+    full_join(raw)
+
+# Preview the data
+glimpse(df)
+```
+
+## Save for use in other chapters
+
+```{r}
+saveRDS(df, file = "data/df.RDS")
+```
+
