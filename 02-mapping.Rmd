@@ -1,6 +1,6 @@
-# (PART) Exploration {-}
+# (PART) Exploratory Analysis {-}
 
-# Mapping SIDS-related Deaths
+# Mapping SIDS Deaths
 
 ```{r echo=FALSE}
 # # Work around to getting map into a Knitted document per https://github.com/arc2r/book/issues/31
@@ -100,7 +100,7 @@ sids_palette <-
 
 ### Create the Map
 
-```{r}
+```{r eval=FALSE}
 # Assign map to a widget object
 m <- leaflet(df) %>%
     # Use CartoDB's background tiles
@@ -124,7 +124,7 @@ m <- leaflet(df) %>%
     ) %>%
     #Add legend
     addLegend(
-        title = "Number of SIDS deaths <br> per census tract",
+        title = "Count of SIDS deaths <br> per census tract <br> from 2015-2019",
         values = ~ death_count,
         pal = sids_palette,
         position = "topright"
