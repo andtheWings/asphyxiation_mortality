@@ -1,0 +1,97 @@
+## (How the population count variable was identified)
+# tidycensus::load_variables(2019, "acs5", cache = TRUE) |> view()
+# "B01003_001" : Total Population
+# "B01001_003" : All Males Under 5 yrs
+# "B01001_027" : All Females Under 5 yrs
+# "B06001_002" : All Under 5 yrs
+
+#' Take a tibble with a FIPS variable listing census tracts and return a df of population counts for people under age 5 and the simples features for each census tract.
+#' @export
+get_sids_pop_est_and_polygons <- function(sids_without_pop_est_raw_df) {
+    
+    df1 <-
+        # Call the census API for pop total, pop under 5, and census polygons
+        tidycensus::get_acs(
+            geography = "tract",
+            variables = c("B01003_001", "B06001_002"),
+            state = "IL",
+            geometry = TRUE,
+            cache_table = TRUE
+        ) |> 
+        # Drop margin of estimate and name variables
+        select(-moe, -NAME) |> 
+        # Convert GEOID to numeric type
+        mutate(
+            GEOID = as.numeric(GEOID)
+        ) |> 
+        # Drop observations not in Cook County
+        semi_join(
+            sids_without_pop_est_raw_df,
+            by = c("GEOID" = "FIPS")
+        ) |> 
+        # Reshape population estimates into separate columns
+        tidyr::pivot_wider(
+            names_from = variable,
+            values_from = estimate
+        ) |> 
+        # Clean names for consistency
+        rename(
+            fips = GEOID,
+            pop_total = B01003_001,
+            pop_under_five = B06001_002
+        )
+    
+    return(df1)
+}
+
+assemble_sids <- function(sids_pop_est_and_polygons_sf, sids_without_pop_est_raw_df) {
+    df1 <- 
+        # Take population estimates
+        sids_pop_est_and_polygons_sf |>
+        # Drop geospatial features
+        select(-geometry) |> 
+        # And join to main sids_df
+        full_join(
+            sids_without_pop_est_raw_df,
+            by = c("fips" = "FIPS")
+        ) |>
+        clean_names() |> 
+        # Rename variables for consistency
+        rename(
+            sids = count_asphyxia,
+            foreign_born = pe_foreignborn,
+            married_males = pe_marriedmales,
+            married_females = pe_marriedfemales,
+            divorced_widowed_males = pedivorcewidowedmale,
+            divorced_widowed_females = pedivorcewidowedfemale,
+            lt_high_school = pelessthanhighschool,
+            high_school_diploma = highschooldiploma,
+            some_college = somecollege,
+            college_diploma = collegediploma,
+            employed = percent_enployed,
+            income_lt_10 = incomelt10,
+            income_lt_25 = incomelt25,
+            income_lt_50 = incomelt50,
+            income_lt_75 = incomelt75,
+            income_gt_75 = incomegt75,
+            private_insurance = privateinsurance,
+            public_insurance = publicinsurance,
+            no_insurance = noinsurance
+        ) |> 
+        # Add new variables
+        mutate(
+            # Binary variable on whether SIDS is present in a tract
+            sids_present = case_when(
+                sids > 0 ~ TRUE,
+                TRUE ~ FALSE
+            )
+        )
+    
+    return(df1)
+}
+
+make_sids_table_2 <- function(sids_raw_df) {
+    
+    
+    
+}

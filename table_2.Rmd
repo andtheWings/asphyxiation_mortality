@@ -1,0 +1,175 @@
+
+```{r}
+library(targets)
+library(tidyverse)
+library(ggdist)
+library(gt)
+```
+
+```{r}
+# set_variable_labels(
+    #     black = "Black (%)",
+    #     white = "White (%)",
+    #     hispanic = "Hispanic (%)",
+    #     lt_high_school = "Less than high school (%)",
+    #     high_school_diploma = "High school diploma (%)",
+    #     some_college = "Some college (%)",
+    #     college_diploma = "College Diploma (%)",
+    #     divorced_widowed_females = "Divorced, widowed females (%)",
+    #     divorced_widowed_males = "Divorced, widowed males (%)",
+    #     married_females = "Married females (%)",
+    #     married_males = "Married males (%)",
+    #     income_gt_75 = "Income greater than the 75th percentile (%)",
+    #     income_lt_10 = "Income less than the 10th percentile (%)",
+    #     income_lt_25 = "Income less than the 25th percentile (%)",
+    #     income_lt_50 = "Income less than the 50th percentile (%)",
+    #     income_lt_75 = "Income less than the 75th percentile (%)",
+    #     private_insurance = "Private insurance (%)",
+    #     public_insurance = "Public insurance (%)",
+    #     no_insurance = "No insurance (%)",
+    #     svi_household_composition_disability = "Household composition & disability (National percentile)",
+    #     svi_socioeconomic = "Socioeconomic status (National percentile)",
+    #     svi_minority_language = "Minority status & language (National percentile)",
+    #     svi_housing_transportation = "Housing type & transportation (National percentile)",
+    #     svi_summary_ranking = "SVI summary (National ranking)",
+    #     pop_under_five = "Population under 5 years old (count)",
+    #     count_opioid_death = "Opioid-related deaths (count)",
+    #     foreign_born = "Foreign-born (%)",
+    #     male = "Male (%)",
+    #     employed = "Employed (%)",
+    #     spanish_language = "Spanish-speaking (%)"
+    # )
+```
+
+
+```{r}
+tar_make()
+tar_load(sids_table_2)
+```
+
+
+```{r}
+sids_table_2 |>
+    tab_row_group(
+        label = "Age",
+        rows = "Population under 5 years old (%)"
+    ) |> 
+    tab_style(
+        style = cell_text(weight = "bold"),
+        locations = cells_row_groups()
+    ) |>
+    tab_row_group(
+        label = "Race/Ethnicity",
+        rows = c("Black (%)", "White (%)", "Hispanic (%)")
+    ) |>
+    tab_row_group(
+        label = "Education",
+        rows = c("Less than high school (%)", "High school diploma (%)", "Some college (%)", "College Diploma (%)")
+    ) |>
+    tab_row_group(
+        label = "Marital Status",
+        rows = c("Divorced, widowed females (%)", "Divorced, widowed males (%)", "Married females (%)", "Married males (%)")
+    ) |>
+    tab_row_group(
+        label = "Income",
+        rows = c("Income greater than the 75th percentile (%)", "Income less than the 10th percentile (%)", "Income less than the 25th percentile (%)", "Income less than the 50th percentile (%)", "Income less than the 75th percentile (%)")
+    ) |>
+    tab_row_group(
+        label = "Insurance Status",
+        rows = c("Private insurance (%)", "Public insurance (%)", "No insurance (%)")
+    ) |>
+    tab_row_group(
+        label = "Social Vulnerability Indices",
+        rows = c("Household composition & disability (National %ile)", "Housing type & transportation (National %ile)", "Minority status & language (National %ile)", "Socioeconomic status (National %ile)", "SVI summary (National %ile)")
+    )
+```
+
+```{r}
+table_2
+```
+
+
+```{r echo=FALSE}
+sids_df |>
+    ggplot(mapping = aes(x = svi_summary_ranking, y = sids_present)) +
+    stat_halfeye() +
+    stat_dotsinterval(side = "bottom")
+
+make_rain_clouds <- function(x) {
+    box::use(
+        ggplot2[ggplot, aes],
+        ggdist[stat_halfeye, stat_dotsinterval]
+    )
+    ggplot(
+        data = sids_df,
+        mapping = aes(x = sids_df[[x]], y = sids_present)
+    ) +
+    stat_halfeye() +
+    stat_dotsinterval(side = "bottom")
+}
+
+make_rain_clouds("svi_household_composition_disability")
+```
+
+```{r echo=FALSE}
+library(ggplot2)
+library(ggdist)
+
+sids_df |>
+    ggplot(mapping = aes(x = svi_household_composition_disability, y = sids_present)) +
+    stat_halfeye() +
+    stat_dotsinterval(side = "bottom")
+```
+```{r echo=FALSE}
+sids_df |>
+    ggplot(mapping = aes(x = pop_under_five, y = sids_present)) +
+    stat_halfeye()+
+    stat_dotsinterval(side = "bottom")
+```
+
+```{r echo=FALSE}
+sids_df |>
+    ggplot(mapping = aes(x = count_opioid_death, y = sids_present)) +
+    stat_halfeye()+
+    stat_dotsinterval(side = "bottom")
+```
+
+```{r echo=FALSE}
+sids_df |>
+    ggplot(mapping = aes(x = pe_marriesids_dfemales, y = sids_present)) +
+    stat_halfeye()+
+    stat_dotsinterval(side = "bottom")
+```
+```{r echo=FALSE}
+sids_df |>
+    ggplot(mapping = aes(x = white, y = sids_present)) +
+    stat_halfeye() +
+    stat_dotsinterval(side = "bottom")
+```
+```{r echo=FALSE}
+sids_df |>
+    ggplot(mapping = aes(x = incomegt75, y = sids_present)) +
+    stat_halfeye() +
+    stat_dotsinterval(side = "bottom")
+```
+
+```{r echo=FALSE}
+sids_df |>
+    ggplot(mapping = aes(x = publicinsurance, y = sids_present)) +
+    stat_halfeye() +
+    stat_dotsinterval(side = "bottom")
+```
+
+```{r echo=FALSE}
+sids_df |>
+    ggplot(mapping = aes(x = spanish_language, y = sids_present)) +
+    stat_halfeye() +
+    stat_dotsinterval(side = "bottom")
+```
+```{r echo=FALSE}
+sids_df |>
+    ggplot(mapping = aes(x = highschooldiploma, y = sids_present)) +
+    stat_halfeye() +
+    stat_dotsinterval(side = "bottom")
+```
+
