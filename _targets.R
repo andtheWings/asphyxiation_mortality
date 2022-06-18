@@ -1,13 +1,35 @@
 library(targets)
 
-source("R/wrangling_sids.R")
-source("R/make_sids_table_2.R")
+sapply(
+    paste0("R/", list.files("R/")),
+    source
+)
+
+# source("R/wrangling_sids.R")
+# source("R/describe_sids_pop.R")
+# source("R/compare_by_presence_of_sids.R")
+# source("R/model_sids_counts_in_census_tracts.R")
+# source("R/visualize_model_performance.R")
 
 # Set target-specific options such as packages.
-tar_option_set(packages = c("dplyr", "janitor"))
+tar_option_set(
+    packages = c(
+        "dplyr", "janitor", # wrangling
+        "ggplot2", "ggdist" # plotting
+    )
+)
 
 # End this file with a list of target objects.
 list(
+    tar_target(
+        ccme_archive_raw_csv,
+        "data/Medical_Examiner_Case_Archive.csv",
+        format = "file",
+    ),
+    tar_target(
+        ccme_archive_raw,
+        read_ccme_archive_csv(ccme_archive_raw_csv)
+    ),
   tar_target(
       name = sids_file, 
       "data/finaldataforanalysis3_220121.xlsx",
@@ -26,7 +48,45 @@ list(
       command = assemble_sids(sids_pop_est_and_polygons, sids_without_pop_est_raw)
   ),
   tar_target(
-      name = sids_table_2,
-      command = make_sids_table_2(sids)
+      name = ethn_race_of_sids,
+      command = plot_ethn_race_of_sids(),
+      format = "file"
+  ),
+  tar_target(
+      name = metro_of_sids,
+      command = plot_metro_of_sids(),
+      format = "file"
+  ),
+  tar_target(
+      name = table_of_vars_by_sids_present,
+      command = make_table_of_vars_by_sids_present(sids),
+      format = "file"
+  ),
+  tar_target(
+      name = raincloud_of_black_by_sids_present,
+      command = plot_raincloud_by_sids_present(sids, "black", "Black Composition of"),
+      format = "file"
+  ),
+  tar_target(
+      name = raincloud_of_white_by_sids_present,
+      command = plot_raincloud_by_sids_present(sids, "white", "% White Residents"),
+      format = "file"
+  ),
+  tar_target(
+      name = raincloud_of_svi_socioeconomic_by_sids_present,
+      command = plot_raincloud_by_sids_present(sids, "svi_socioeconomic", "Socioeconomic Percentile of"),
+      format = "file"
+  ),
+  tar_target(
+      name = nb_model_of_sids,
+      command = fit_nb_model_of_sids(sids)
+  ),
+  tar_target(
+      name = lm_model_of_sids,
+      command = fit_lm_model_of_sids(sids)
+  ),
+  tar_target(
+      name = rootogram_table,
+      command = summarize_rootogram_table(sids, lm_model_of_sids, nb_model_of_sids)
   )
 )
