@@ -5,15 +5,10 @@ sapply(
     source
 )
 
-# source("R/wrangling_sids.R")
-# source("R/describe_sids_pop.R")
-# source("R/compare_by_presence_of_sids.R")
-# source("R/model_sids_counts_in_census_tracts.R")
-# source("R/visualize_model_performance.R")
-
 # Set target-specific options such as packages.
 tar_option_set(
     packages = c(
+        "sf", # geospatial
         "dplyr", "janitor", # wrangling
         "ggplot2", "ggdist" # plotting
     )
@@ -21,72 +16,63 @@ tar_option_set(
 
 # End this file with a list of target objects.
 list(
-    tar_target(
-        ccme_archive_raw_csv,
-        "data/Medical_Examiner_Case_Archive.csv",
-        format = "file",
-    ),
-    tar_target(
-        ccme_archive_raw,
-        read_ccme_archive_csv(ccme_archive_raw_csv)
-    ),
   tar_target(
-      name = sids_file, 
+      name = suid_from_internal_raw_file, 
       "data/finaldataforanalysis3_220121.xlsx",
       format = "file"
   ),
   tar_target(
-      name = sids_without_pop_est_raw,
-      command = readxl::read_xlsx(sids_file)
+      name = suid_from_internal_raw,
+      command = readxl::read_xlsx(suid_from_internal_raw_file)
   ),
   tar_target(
-      name = sids_pop_est_and_polygons,
-      command = get_sids_pop_est_and_polygons(sids_without_pop_est_raw)
+      name = suid_from_tidycensus,
+      command = get_suid_from_tidycensus()
   ),
   tar_target(
-      name = sids,
-      command = assemble_sids(sids_pop_est_and_polygons, sids_without_pop_est_raw)
-  ),
-  tar_target(
-      name = ethn_race_of_sids,
-      command = plot_ethn_race_of_sids(),
-      format = "file"
-  ),
-  tar_target(
-      name = metro_of_sids,
-      command = plot_metro_of_sids(),
-      format = "file"
-  ),
-  tar_target(
-      name = table_of_vars_by_sids_present,
-      command = make_table_of_vars_by_sids_present(sids),
-      format = "file"
-  ),
-  tar_target(
-      name = raincloud_of_black_by_sids_present,
-      command = plot_raincloud_by_sids_present(sids, "black", "Black Composition of"),
-      format = "file"
-  ),
-  tar_target(
-      name = raincloud_of_white_by_sids_present,
-      command = plot_raincloud_by_sids_present(sids, "white", "% White Residents"),
-      format = "file"
-  ),
-  tar_target(
-      name = raincloud_of_svi_socioeconomic_by_sids_present,
-      command = plot_raincloud_by_sids_present(sids, "svi_socioeconomic", "Socioeconomic Percentile of"),
-      format = "file"
-  ),
-  tar_target(
-      name = nb_model_of_sids,
-      command = fit_nb_model_of_sids(sids)
-  ),
-  tar_target(
-      name = lm_model_of_sids,
-      command = fit_lm_model_of_sids(sids)
-  ),
-  tar_target(
-      name = rootogram_table,
-      command = summarize_rootogram_table(sids, lm_model_of_sids, nb_model_of_sids)
-  )
+      name = suid,
+      command = assemble_suid(suid_from_internal_raw, suid_from_tidycensus)
+  )#,
+  # tar_target(
+  #     name = ethn_race_of_suid,
+  #     command = plot_ethn_race_of_suid(),
+  #     format = "file"
+  # ),
+  # tar_target(
+  #     name = metro_of_suid,
+  #     command = plot_metro_of_suid(),
+  #     format = "file"
+  # ),
+  # tar_target(
+  #     name = table_of_vars_by_suid_present,
+  #     command = make_table_of_vars_by_suid_present(suid),
+  #     format = "file"
+  # ),
+  # tar_target(
+  #     name = raincloud_of_black_by_suid_present,
+  #     command = plot_raincloud_by_suid_present(suid, "black", "Black Composition of"),
+  #     format = "file"
+  # ),
+  # tar_target(
+  #     name = raincloud_of_white_by_suid_present,
+  #     command = plot_raincloud_by_suid_present(suid, "white", "% White Residents"),
+  #     format = "file"
+  # ),
+  # tar_target(
+  #     name = raincloud_of_svi_socioeconomic_by_suid_present,
+  #     command = plot_raincloud_by_suid_present(suid, "svi_socioeconomic", "Socioeconomic Percentile of"),
+  #     format = "file"
+  # ),
+  # tar_target(
+  #     name = nb_model_of_suid,
+  #     command = fit_nb_model_of_suid(suid)
+  # ),
+  # tar_target(
+  #     name = lm_model_of_suid,
+  #     command = fit_lm_model_of_suid(suid)
+  # ),
+  # tar_target(
+  #     name = rootogram_table,
+  #     command = summarize_rootogram_table(suid, lm_model_of_suid, nb_model_of_suid)
+  # )
 )

@@ -1,0 +1,22 @@
+"0","leaflet(resids_map_data) %>%
+    # Use CartoDB's background tiles
+    addProviderTiles(""CartoDB.Positron"") %>%
+    # Center and zoom the map to Cook County
+    setView(lat = 41.816544, lng = -87.749500, zoom = 9) %>%
+    # Add button to enable fullscreen map
+    addFullscreenControl() %>%
+    # Add census tract polygons colored to reflect the number of deaths
+    addPolygons(
+        # No borders to the polygons, just fill
+        stroke = TRUE,
+        # Color according to palette above
+        color = ~ .std.resid,
+        # Make slightly transparent
+        fillOpacity = 0.5,
+        # Click on the polygon to get its ID
+        popup = ~ paste0(""<b>FIPS ID:</b> "", as.character(fips))
+    )
+"
+"2","Error in structure(list(options = options), leafletData = data) : 
+  object 'resids_map_data' not found
+"

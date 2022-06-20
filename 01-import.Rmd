@@ -1,11 +1,18 @@
-# Import the Data
+# Import and Wrangle the Data
 
 ## Dependencies
 
 ```{r}
 # Load needed modules
 box::use(
-    dplyr[full_join, glimpse, select],
+    dplyr[
+        case_when,
+        full_join, 
+        glimpse, 
+        mutate,
+        rename,
+        select
+    ],
     janitor[clean_names],
     magrittr[`%>%`],
     readxl[read_xlsx],
@@ -50,23 +57,53 @@ Then, import census population data:
 
 coords_and_pop_est <- readRDS("data/coords_and_pop_est.RDS")
 
-# Join the population counts to the imported dataframe
-df <- 
+sids_df <- 
+    # Take population estimates
     coords_and_pop_est %>%
     # Drop geospatial features
     st_set_geometry(NULL) %>%
     # Convert to tibble format
     as_tibble() %>%
-    # And join to raw
-    full_join(raw)
+    # And join to dataset
+    full_join(raw) %>%
+    # Add new variables
+    mutate(
+        # Binary variable on whether SIDS is present in a tract
+        sids_present = case_when(
+            count_asphyxia > 0 ~ TRUE,
+            TRUE ~ FALSE
+        )
+    ) %>%
+    # Rename variables for consistency
+    rename(
+        sids = count_asphyxia,
+        foreign_born = pe_foreignborn,
+        married_males = pe_marriedmales,
+        married_females = pe_marriedfemales,
+        divorced_widowed_males = pedivorcewidowedmale,
+        divorced_widowed_females = pedivorcewidowedfemale,
+        lt_high_school = pelessthanhighschool,
+        high_school_diploma = highschooldiploma,
+        some_college = somecollege,
+        college_diploma = collegediploma,
+        employed = percent_enployed,
+        income_lt_10 = incomelt10,
+        income_lt_25 = incomelt25,
+        income_lt_50 = incomelt50,
+        income_lt_75 = incomelt75,
+        income_gt_75 = incomegt75,
+        private_insurance = privateinsurance,
+        public_insurance = publicinsurance,
+        no_insurance = noinsurance
+    )
 
 # Preview the data
-glimpse(df)
+glimpse(sids_df)
 ```
 
 ## Save for use in other chapters
 
 ```{r}
-saveRDS(df, file = "data/df.RDS")
+saveRDS(sids_df, file = "data/sids_df.RDS")
 ```
 

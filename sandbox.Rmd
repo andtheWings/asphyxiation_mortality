@@ -1,0 +1,67 @@
+---
+title: "Sandbox"
+author: "Daniel P. Hall Riggins, MD"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r}
+library(targets)
+library(tidyverse)
+library(stringr)
+library(sf)
+library(tidycensus)
+tar_load_everything()
+```
+
+
+
+```{r}
+suid |>
+    select(-fips, -geometry, -suid_present)  |> 
+    corrr::correlate() |>
+    select(term, suid_count) |> 
+    arrange(desc(abs(suid_count)))
+```
+
+
+
+```{r}
+sids_pop_est_and_polygons |> 
+    ggplot(aes(x = avg_per_household)) +
+    geom_histogram()
+```
+
+
+```{r}
+ccme_archive_raw <- ccme_archive_raw |> 
+    janitor::clean_names()
+
+other_cases <- c('ME2015-00661','ME2015-00978','ME2015-04542','ME2015-05167','ME2015-05204','ME2016-00123','ME2016-01635','ME2016-02889', 'ME2017-00449','ME2017-00532','ME2017-02115','ME2017-05868','ME2018-00484','ME2018-01642','ME2018-05292','ME2019-02450')
+
+ccme_archive_raw |> 
+    filter(age == 0) |>
+    mutate(
+        manner_of_death = str_to_lower(manner_of_death),
+        primary_cause = str_to_lower(primary_cause)
+    ) |> 
+    filter(
+        (str_detect(manner_of_death, "undetermined") & str_detect(primary_cause, "undetermined")) |
+            str_detect(primary_cause, "asphyxia") |
+            str_detect(primary_cause, "suffoc") |
+            case_number %in% other_cases
+    ) |> 
+    filter(!is.na(longitude) & !is.na(latitude)) |> 
+    st_as_sf(
+        coords = c("longitude", "latitude"),
+        crs = 4326
+    ) |> 
+    plot()
+```
+
+```{r}
+library(SpatialEpi)
+data(scotland)
+
+```
+

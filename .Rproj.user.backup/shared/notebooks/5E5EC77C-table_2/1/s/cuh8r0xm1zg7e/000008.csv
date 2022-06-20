@@ -1,0 +1,43 @@
+"0","rootogram_table |> 
+    ggplot(
+    ) +
+    geom_rect(
+        aes(
+            ymax = sqrt_sids_count,
+            ymin = 0,
+            xmin = sids_count - 0.45,
+            xmax = sids_count + 0.45
+        ),
+        stat = ""identity"",
+        color = ""black"",
+        fill = ""gray""
+    ) +
+    geom_point(
+       aes(
+           x = sids_count,
+           y = nb_expected
+       ),
+       color = ""gold3"",
+       size = 1
+    ) +
+    geom_line(
+       aes(
+           x = sids_count,
+           y = nb_expected
+       ),
+       color = ""gold3"",
+       width = 1
+    ) +
+    geom_hline(
+        yintercept = 0
+    ) +
+    theme_linedraw() +
+    labs(
+        title = ""Distribution of the count of SIDS events \n in Cook County Census Tracts from 2015-2019"",
+        x = ""Number of SIDS events"",
+        y = ""sqrt(Frequency)""
+    )
+"
+"2","Warning:"
+"2"," Ignoring unknown parameters: width
+"

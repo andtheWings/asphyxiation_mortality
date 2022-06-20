@@ -1,0 +1,5 @@
+"0","raw <- "
+"0","    # Parse excel file"
+"0","    read_xlsx(""data/finaldataforanalysis3_220121.xlsx"") %>%"
+"0","    # Clean up variability in naming conventions"
+"0","    clean_names()"

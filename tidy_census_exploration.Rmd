@@ -1,0 +1,118 @@
+
+```{r}
+library(tidyverse)
+library(censusapi)
+```
+
+## Look at available end points
+
+
+```{r}
+census_apis <- listCensusApis() %>% view()
+```
+
+
+## Stratify by sex for those under 5 at census tract level
+
+```{r}
+listCensusMetadata(
+    name = "acs/acs5/spt",
+    vintage = 2015,
+    type = "variables"
+) %>% view()
+```
+
+B01001_003 = Estimate!!Total:!!Male:!!Under 5 years
+B01001_027 = Estimate!!Total:!!Female:!!Under 5 years
+
+## Stratify by sex for those under 5 years old at county level
+
+```{r}
+listCensusMetadata(
+    name = "acs/acs5/subject",
+    vintage = 2019,
+    type = "variables"
+) %>% view()
+```
+
+S0101_C01_002E = Estimate!!Total!!Total population!!AGE!!Under 5 years
+S0101_C05_002E = Estimate!!Female!!Total population!!AGE!!Under 5 years
+S0101_C03_002E = Estimate!!Male!!Total population!!AGE!!Under 5 years
+
+```{r}
+age_sex_population_estimates <- 
+    censusapi::getCensus(
+        name = "acs/acs5/subject",
+        vintage = 2019,
+        region = "county:031",
+        regionin = "state:17",
+        vars = c("S0101_C01_002E", "S0101_C05_002E", "S0101_C03_002E")
+    )
+
+age_sex_population_estimates %>%
+    rename(
+        female = S0101_C05_002E,
+        male = S0101_C03_002E
+    )
+
+view(age_sex_population_estimates)
+```
+
+## Stratify by race/ethnicity for those under 5 years old at county level
+
+
+```{r}
+listCensusMetadata(
+    name = "acs/acs1/spp",
+    vintage = 2019,
+    type = "variables"
+) %>% view()
+```
+
+S0201_006E = Estimate!!SEX AND AGE!!Total population
+S0201_009E = Estimate!!SEX AND AGE!!Total population!!Under 5 years
+POPGROUP = Race/Ethnic Group
+
+```{r}
+age_race_ethn_pop_estimates <- 
+    censusapi::getCensus(
+        name = "acs/acs1/spp",
+        vintage = 2019,
+        region = "county:031",
+        regionin = "state:17",
+        vars = c("S0201_006E", "S0201_009E", "POPGROUP", "POPGROUP_LABEL")
+    )
+
+age_race_ethn_pop_estimates_mod_1 <- 
+    age_race_ethn_pop_estimates %>%
+    rename(
+        total_of_race_eth = S0201_006E,
+        percent_of_race_eth_under_5 = S0201_009E
+    ) %>%
+    mutate(
+        count_of_race_eth_under_5 = percent_of_race_eth_under_5 / 100 * total_of_race_eth
+    )
+
+total_pop_under_5 <- 
+    age_race_ethn_pop_estimates_mod_1$count_of_race_eth_under_5 %>%
+    pluck(1)
+
+age_race_ethn_pop_estimates_mod_1 %>%
+    mutate(
+        percent_of_under_5_w_race_eth = round(count_of_race_eth_under_5 / total_pop_under_5 * 100, 2)
+    ) %>%
+    view()
+```
+
+## County vs City
+
+For ACS 2019 5-year Estimate
+
+```{r}
+city_under_5 <- 171323
+county_under_5 <- 310231
+county_suburbs_under_5 <- county_under_5 - city_under_5
+city_under_5 / county_under_5
+county_suburbs_under_5 / county_under_5
+```
+

@@ -1,0 +1,8 @@
+"0","performance::performance(model_of_sids_counts)
+"
+"1","[34m# Indices of model performance[39m
+
+AIC      |      BIC | Nagelkerke's R2 |  RMSE | Sigma | Score_log | Score_spherical
+-----------------------------------------------------------------------------------
+1350.111 | 1386.215 |           0.365 | 0.564 | 0.741 |    -0.521 |           0.026
+"

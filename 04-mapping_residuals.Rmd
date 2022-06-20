@@ -1,0 +1,43 @@
+# (PART) Model Evaluation {-}
+
+# Mapping Residuals
+
+```{r include=FALSE}
+df <- readRDS("data/df.RDS")
+coords_and_pop_est <- readRDS("data/coords_and_pop_est.RDS")
+
+main_effect_models <- list()
+
+main_effect_models$four_var <- 
+    MASS::glm.nb(
+        count_asphyxia ~ pop_under_five + publicinsurance + count_opioid_death + white,
+        data = df
+    )
+    
+```
+
+
+```{r}
+box::use(
+    broom[augment],
+    dplyr[filter, full_join, select],
+    magrittr[`%>%`],
+    tmap[tmap_mode, tm_polygons, tm_shape]
+)
+
+tmap_mode("view")
+
+tm_shape(
+    coords_and_pop_est %>%
+        full_join(df) %>%
+        full_join(augment(main_effect_models$four_var)) %>%
+        select(fips, .std.resid) %>%
+        filter(abs(.std.resid) > 1)
+    ) +
+    tm_polygons(
+        ".std.resid", 
+        palette = "-Spectral",
+        alpha = 0.7
+    )
+```
+

@@ -1,0 +1,7 @@
+h1:part-exploratory-analysis (PART) Exploratory Analysis
+h1:mapping-sids-deaths Mapping SIDS Deaths
+h2:code-to-produce-the-map Code to produce the map
+h3:load-dependencies Load Dependencies
+h3:reshape-data-for-use-in-the-map Reshape data for use in the map
+h3:create-the-map Create the Map
+

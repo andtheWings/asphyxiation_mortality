@@ -1,0 +1,15 @@
+"0","parameters::model_parameters(model_of_sids_counts, exponentiate = TRUE, standardize = ""refit"") 
+"
+"1","Parameter                  |  IRR |   SE |       95% CI |      z |      p
+-------------------------------------------------------------------------
+(Intercept)                | 0.15 | 0.01 | [0.13, 0.18] | -21.57 | < .001
+pop under five             | 1.17 | 0.07 | [1.04, 1.31] |   2.71 | 0.007 
+public insurance           | 1.68 | 0.16 | [1.39, 2.04] |   5.30 | < .001
+count opioid death         | 1.54 | 0.12 | [1.31, 1.80] |   5.72 | < .001
+white                      | 0.61 | 0.06 | [0.50, 0.74] |  -4.86 | < .001
+count opioid death * white | 1.29 | 0.07 | [1.15, 1.45] |   4.58 | < .001
+"
+"2","
+Uncertainty intervals (profile-likelihood) and p values (two-tailed) computed using a Wald z-distribution
+  approximation.
+"

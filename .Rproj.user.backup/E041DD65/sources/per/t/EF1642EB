@@ -1,0 +1,26 @@
+{
+    "id": "EF1642EB",
+    "path": "~/cook_county_sids_mortality/_targets.R",
+    "project_path": "_targets.R",
+    "type": "r_source",
+    "hash": "2795465752",
+    "contents": "",
+    "dirty": false,
+    "created": 1650031014170.0,
+    "source_on_save": false,
+    "relative_order": 7,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "20,45",
+        "scrollLine": "8"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1650746645,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1650746645422,
+    "read_only": false,
+    "read_only_alternatives": []
+}

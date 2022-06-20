@@ -1,0 +1,8 @@
+"0","performance::performance(lm_sids_model)
+"
+"1","[34m# Indices of model performance[39m
+
+AIC      |      BIC |    R2 | R2 (adj.) |  RMSE | Sigma
+-------------------------------------------------------
+2208.399 | 2244.503 | 0.164 |     0.161 | 0.569 | 0.570
+"

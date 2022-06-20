@@ -1,0 +1,15 @@
+"0","parameters::model_parameters(model_of_sids_counts) 
+"
+"1","Parameter                  | Log-Mean |       SE |         95% CI |     z |      p
+----------------------------------------------------------------------------------
+(Intercept)                |    -2.44 |     0.38 | [-3.20, -1.70] | -6.44 | < .001
+pop under five             | 1.01e-03 | 3.74e-04 | [ 0.00,  0.00] |  2.71 | 0.007 
+public insurance           |     0.03 | 5.96e-03 | [ 0.02,  0.04] |  5.30 | < .001
+count opioid death         | 2.27e-04 |     0.01 | [-0.02,  0.02] |  0.02 | 0.984 
+white                      |    -0.02 | 3.65e-03 | [-0.03, -0.02] | -6.20 | < .001
+count opioid death * white | 1.73e-03 | 3.77e-04 | [ 0.00,  0.00] |  4.58 | < .001
+"
+"2","
+Uncertainty intervals (profile-likelihood) and p values (two-tailed) computed using a Wald z-distribution
+  approximation.
+"

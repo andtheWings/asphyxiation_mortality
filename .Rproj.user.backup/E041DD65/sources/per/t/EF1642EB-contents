@@ -1,0 +1,78 @@
+library(targets)
+
+source("R/wrangling_sids.R")
+source("R/describe_sids_pop.R")
+source("R/compare_by_presence_of_sids.R")
+source("R/model_sids_counts_in_census_tracts.R")
+source("R/visualize_model_performance.R")
+
+# Set target-specific options such as packages.
+tar_option_set(
+    packages = c(
+        "dplyr", "janitor", # wrangling
+        "ggplot2", "ggdist" # plotting
+    )
+)
+
+# End this file with a list of target objects.
+list(
+  tar_target(
+      name = sids_file, 
+      "data/finaldataforanalysis3_220121.xlsx",
+      format = "file"
+  ),
+  tar_target(
+      name = sids_without_pop_est_raw,
+      command = readxl::read_xlsx(sids_file)
+  ),
+  tar_target(
+      name = sids_pop_est_and_polygons,
+      command = get_sids_pop_est_and_polygons(sids_without_pop_est_raw)
+  ),
+  tar_target(
+      name = sids,
+      command = assemble_sids(sids_pop_est_and_polygons, sids_without_pop_est_raw)
+  ),
+  tar_target(
+      name = ethn_race_of_sids,
+      command = plot_ethn_race_of_sids(),
+      format = "file"
+  ),
+  tar_target(
+      name = metro_of_sids,
+      command = plot_metro_of_sids(),
+      format = "file"
+  ),
+  tar_target(
+      name = table_of_vars_by_sids_present,
+      command = make_table_of_vars_by_sids_present(sids),
+      format = "file"
+  ),
+  tar_target(
+      name = raincloud_of_black_by_sids_present,
+      command = plot_raincloud_by_sids_present(sids, "black", "Black Composition of"),
+      format = "file"
+  ),
+  tar_target(
+      name = raincloud_of_white_by_sids_present,
+      command = plot_raincloud_by_sids_present(sids, "white", "% White Residents"),
+      format = "file"
+  ),
+  tar_target(
+      name = raincloud_of_svi_socioeconomic_by_sids_present,
+      command = plot_raincloud_by_sids_present(sids, "svi_socioeconomic", "Socioeconomic Percentile of"),
+      format = "file"
+  ),
+  tar_target(
+      name = nb_model_of_sids,
+      command = fit_nb_model_of_sids(sids)
+  ),
+  tar_target(
+      name = lm_model_of_sids,
+      command = fit_lm_model_of_sids(sids)
+  ),
+  tar_target(
+      name = rootogram_table,
+      command = summarize_rootogram_table(sids, lm_model_of_sids, nb_model_of_sids)
+  )
+)
