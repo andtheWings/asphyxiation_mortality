@@ -21,6 +21,7 @@ get_suid_from_tidycensus <- function() {
             county = 031, # Cook County
             geometry = TRUE # Import census tract polygons too
         ) |> 
+        st_transform(crs = 4326) |> 
         # Drop margin of estimate and name variables
         select(-moe, -NAME) |>
         # Convert GEOID to numeric type
@@ -43,7 +44,8 @@ get_suid_from_tidycensus <- function() {
         relocate(
             geometry,
             .after = avg_peop_per_household
-        )
+        ) |> 
+        st_as_sf()
     
     return(df1)
 }

@@ -36,11 +36,33 @@ assemble_suid <- function(suid_from_internal_raw_df, suid_from_tidycensus_sf) {
                 suid_count > 0 ~ TRUE,
                 TRUE ~ FALSE
             ),
+            suid_count_factor = factor(
+                case_when(
+                    suid_count == 0 ~ "No Deaths",
+                    suid_count == 1 ~ "One Death",
+                    suid_count == 2 ~ "Two Deaths",
+                    suid_count == 3 ~ "Three Deaths",
+                    suid_count == 4 ~ "Four Deaths",
+                    suid_count == 5 ~ "Five Deaths",
+                    suid_count > 5 ~ "Six+ Deaths"
+                ),
+                ordered = TRUE,
+                levels = c(
+                    "No Deaths", 
+                    "One Death", 
+                    "Two Deaths", 
+                    "Three Deaths", 
+                    "Four Deaths", 
+                    "Five Deaths", 
+                    "Six+ Deaths"
+                )
+            ),
             across(
                 .cols = starts_with("svi_"),
                 .fns = ~ round((.x * 100), digits = 1)
             )
-        )
+        ) |> 
+        st_as_sf()
     
     return(df1)
 }

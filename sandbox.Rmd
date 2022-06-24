@@ -11,9 +11,9 @@ library(tidyverse)
 library(stringr)
 library(sf)
 library(tidycensus)
+library(lubridate)
 tar_load_everything()
 ```
-
 
 
 ```{r}
@@ -34,12 +34,15 @@ sids_pop_est_and_polygons |>
 
 
 ```{r}
+ccme_archive_raw <- readr::read_csv(ccme_archive_raw_file)
+
 ccme_archive_raw <- ccme_archive_raw |> 
     janitor::clean_names()
 
 other_cases <- c('ME2015-00661','ME2015-00978','ME2015-04542','ME2015-05167','ME2015-05204','ME2016-00123','ME2016-01635','ME2016-02889', 'ME2017-00449','ME2017-00532','ME2017-02115','ME2017-05868','ME2018-00484','ME2018-01642','ME2018-05292','ME2019-02450')
 
-ccme_archive_raw |> 
+ccme_suid_per_year <-
+    ccme_archive_raw |> 
     filter(age == 0) |>
     mutate(
         manner_of_death = str_to_lower(manner_of_death),
@@ -51,7 +54,128 @@ ccme_archive_raw |>
             str_detect(primary_cause, "suffoc") |
             case_number %in% other_cases
     ) |> 
-    filter(!is.na(longitude) & !is.na(latitude)) |> 
+    mutate(
+        year_of_death = 
+            year(
+                mdy_hms(date_of_death)
+            )
+    ) |> 
+    mutate(
+        race_ethn =
+            case_when(
+                latino == TRUE ~ "Hispanic/Latino",
+                race == "White" ~ "Non-Hispanic White",
+                race == "Black" ~ "Non-Hispanic Black",
+                is.na(race) ~ "Other",
+                TRUE ~ "Other"
+            )
+    ) |> 
+    group_by(year_of_death, race_ethn) |> 
+    summarise(deaths = n()) |> 
+    ungroup() |> 
+    filter(year_of_death %in% 2015:2019) |> 
+    add_row(
+        year_of_death = 2016,
+        race_ethn = "Other",
+        deaths = 0
+    ) |> 
+    add_row(
+        year_of_death = 2019,
+        race_ethn = "Other",
+        deaths = 0
+    ) |> 
+    add_column(
+        births = c(7728, 5123, 13723, 2950, 7443, 5069, 13172, 7249, 5129, 12624, 3035, 7067, 4885, 12091, 2887, 6899, 4679, 11737, 3076, 2832)
+    ) |> 
+    mutate(
+        deaths_per_births = deaths / births * 1E5
+    )
+    
+```
+```{r}
+combined_suid <-
+    ccme_suid_per_year |> 
+    group_by(year_of_death) |> 
+    summarise(
+        births = sum(births),
+        deaths = sum(deaths)
+    ) |> 
+    mutate(
+        deaths_per_births = deaths / births * 1E5
+    )
+```
+
+```{r}
+combined_suid |> 
+    ggplot(aes(x = as.integer(year_of_death), y = deaths_per_births)) +
+    geom_line() +
+    geom_point() +
+    labs(
+        title = "Overall Yearly Incidence of SUID cases in Cook County, IL from 2015-2021",
+        x = "Year",
+        y = "Deaths per 100,000 Live Births"
+    ) +
+    scale_x_continuous(
+        breaks = 2015:2021
+    ) +
+    theme_linedraw()
+```
+
+
+```{r}
+ccme_suid_per_year |> 
+    ggplot(aes(x = as.integer(year_of_death), y = deaths, color = race_ethn)) +
+    geom_line() +
+    geom_point() +
+    labs(
+        title = "Counts of SUID cases in Cook County, IL from 2015-2021",
+        x = "Year",
+        y = "Count",
+        color = "Race/Ethnicity"
+    ) +
+    scale_x_continuous(
+        breaks = 2015:2021
+    ) +
+    theme_linedraw()
+```
+
+```{r}
+ccme_suid_per_year |> 
+    ggplot(aes(x = as.integer(year_of_death), y = births, color = race_ethn)) +
+    geom_line() +
+    geom_point() +
+    labs(
+        title = "Birth Counts in Cook County, IL from 2015-2021",
+        x = "Year",
+        y = "Count",
+        color = "Race/Ethnicity"
+    ) +
+    scale_x_continuous(
+        breaks = 2015:2021
+    ) +
+    theme_linedraw()
+```
+
+```{r}
+ccme_suid_per_year |> 
+    ggplot(aes(x = as.integer(year_of_death), y = deaths_per_births, color = race_ethn)) +
+    geom_line() +
+    geom_point() +
+    labs(
+        title = "Yearly Incidence of SUID cases in Cook County, IL from 2015-2021",
+        x = "Year",
+        y = "Deaths per 100,000 Live Births",
+        color = "Race/Ethnicity"
+    ) +
+    scale_x_continuous(
+        breaks = 2015:2021
+    ) +
+    theme_linedraw()
+```
+
+
+```{r}
+filter(!is.na(longitude) & !is.na(latitude)) |> 
     st_as_sf(
         coords = c("longitude", "latitude"),
         crs = 4326
