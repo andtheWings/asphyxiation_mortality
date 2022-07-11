@@ -4,7 +4,7 @@ I am currently writing a manuscript on the following aspects of this project:
 - Demographics of the SUID population
 - Comparative characteristics of census tracts that have or have not experienced a case of SUID
 - Mapping the incidence of SUID in census tracts
-- Predictive modeling of the number of SUID cases in each census tract
+- Predictive modeling of the number of SUID incidence
 
 Here is a walkthrough of the repo contents:
 - 00-abstract.rmd is the Abstract
