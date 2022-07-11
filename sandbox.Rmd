@@ -12,6 +12,7 @@ library(stringr)
 library(sf)
 library(tidycensus)
 library(lubridate)
+tar_make()
 tar_load_everything()
 ```
 
@@ -34,42 +35,29 @@ sids_pop_est_and_polygons |>
 
 
 ```{r}
-ccme_archive_raw <- readr::read_csv(ccme_archive_raw_file)
+ccme_archive_suid_cases |> 
+    select(auto_captured, gender, race, latino) |> 
+    gtsummary::tbl_summary(by = auto_captured) |> 
+    gtsummary::add_ci() |> 
+    gtsummary::add_p()
+```
 
-ccme_archive_raw <- ccme_archive_raw |> 
-    janitor::clean_names()
 
-other_cases <- c('ME2015-00661','ME2015-00978','ME2015-04542','ME2015-05167','ME2015-05204','ME2016-00123','ME2016-01635','ME2016-02889', 'ME2017-00449','ME2017-00532','ME2017-02115','ME2017-05868','ME2018-00484','ME2018-01642','ME2018-05292','ME2019-02450')
+```{r}
+ccme_archive_suid_cases$latitude[ccme_archive_suid_cases$case_number == "ME2016-00123"] <- 41.77820
+ccme_archive_suid_cases$longitude[ccme_archive_suid_cases$case_number == "ME2016-00123"] <- -87.61707
 
+
+ccme_archive_suid_cases |> 
+    filter(auto_captured == FALSE) |> 
+    st_as_sf(coords = c("longitude", "latitude")) |> 
+    plot()
+```
+
+
+```{r}
 ccme_suid_per_year <-
-    ccme_archive_raw |> 
-    filter(age == 0) |>
-    mutate(
-        manner_of_death = str_to_lower(manner_of_death),
-        primary_cause = str_to_lower(primary_cause)
-    ) |> 
-    filter(
-        (str_detect(manner_of_death, "undetermined") & str_detect(primary_cause, "undetermined")) |
-            str_detect(primary_cause, "asphyxia") |
-            str_detect(primary_cause, "suffoc") |
-            case_number %in% other_cases
-    ) |> 
-    mutate(
-        year_of_death = 
-            year(
-                mdy_hms(date_of_death)
-            )
-    ) |> 
-    mutate(
-        race_ethn =
-            case_when(
-                latino == TRUE ~ "Hispanic/Latino",
-                race == "White" ~ "Non-Hispanic White",
-                race == "Black" ~ "Non-Hispanic Black",
-                is.na(race) ~ "Other",
-                TRUE ~ "Other"
-            )
-    ) |> 
+    ccme_archive_suid_cases |> 
     group_by(year_of_death, race_ethn) |> 
     summarise(deaths = n()) |> 
     ungroup() |> 

@@ -6,7 +6,7 @@
 # "B06001_002" : All Under 5 yrs
 # "B25010_001" : AVERAGE HOUSEHOLD SIZE OF OCCUPIED HOUSING UNITS
 
-get_suid_from_tidycensus <- function() {
+get_suid_from_tidycensus_raw <- function() {
     
     df1 <-
         # Call the census API

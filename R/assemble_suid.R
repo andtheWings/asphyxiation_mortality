@@ -1,9 +1,9 @@
-assemble_suid <- function(suid_from_internal_raw_df, suid_from_tidycensus_sf) {
+assemble_suid <- function(suid_from_internal_raw_df, suid_from_tidycensus_raw_sf) {
     
     df1 <- 
         left_join(
             suid_from_internal_raw_df,
-            suid_from_tidycensus_sf,
+            suid_from_tidycensus_raw_sf,
             by = c("FIPS" = "fips")
         ) |>
         clean_names() |> 

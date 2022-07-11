@@ -8,7 +8,7 @@ DPR imported HZ's excel file into the Targets pipeline using the function `readx
 print(source("R/get_suid_from_tidycensus.R")$value)
 ```
 
-DPR combined the two data sources with his function `assemble_suid()`, which performs a left join on FIPS ID for observations from HZ's excel data, then does some wrangling around naming conventions, adds a boolean variale for whether SUID is present in a given tract, and rounds estimates to the first decimal point for consistency:
+DPR combined the two data sources with his function `assemble_suid()`, which performs a left join on FIPS ID for observations from HZ's excel data, then does some wrangling around naming conventions, adds a boolean variable for whether SUID is present in a given tract, and rounds estimates to the first decimal point for consistency:
 
 ```{r echo=FALSE}
 print(source("R/assemble_suid.R")$value)

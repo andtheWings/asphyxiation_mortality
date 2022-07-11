@@ -16,9 +16,6 @@ make_suid_count_map <- function(suid_sf) {
             )
         )
     
-    library(leaflet)
-    library(leaflet.extras)
-    
     obj1 <-
         # Assign map to a widget object
         leaflet(suid_sf) |>

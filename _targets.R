@@ -9,22 +9,30 @@ sapply(
 tar_option_set(
     packages = c(
         "sf", "leaflet", # geospatial
-        "dplyr", "janitor", # wrangling
+        "dplyr", "janitor", "lubridate", "stringr", # wrangling
         "ggplot2", "ggdist" # plotting
     )
 )
 
-# End this file with a list of target objects.
 list(
+    # Source: Cook County Medical Examiner's Office Case Archive
+    # https://hub-cookcountyil.opendata.arcgis.com/datasets/4f7cc9f13542463c89b2055afd4a6dc1_0/explore
+    # Last pulled May 24th
     tar_target(
         ccme_archive_raw_file,
         "data/Medical_Examiner_Case_Archive.csv",
         format = "file",
     ),
-    # tar_target(
-    #     ccme_archive_raw,
-    #     read_ccme_archive_csv(ccme_archive_raw_csv)
-    # ),
+    tar_target(
+        ccme_archive_raw,
+        read_ccme_archive_csv(ccme_archive_raw_file)
+    ),
+    tar_target(
+        ccme_archive_suid_cases,
+        wrangle_ccme_archive_suid_cases(ccme_archive_raw)
+    ),
+    # Source: Internally generated file
+    # Received in email from HZ on 01/21/22
     tar_target(
         name = suid_from_internal_raw_file, 
         "data/finaldataforanalysis3_220121.xlsx",
@@ -34,13 +42,14 @@ list(
         name = suid_from_internal_raw,
         command = readxl::read_xlsx(suid_from_internal_raw_file)
     ),
+    # Source: Tidycensus to Census API
     tar_target(
-        name = suid_from_tidycensus,
-        command = get_suid_from_tidycensus()
+        name = suid_from_tidycensus_raw,
+        command = get_suid_from_tidycensus_raw()
     ),
     tar_target(
         name = suid,
-        command = assemble_suid(suid_from_internal_raw, suid_from_tidycensus)
+        command = assemble_suid(suid_from_internal_raw, suid_from_tidycensus_raw)
     )
     # tar_target(
     #     name = ethn_race_of_suid,
