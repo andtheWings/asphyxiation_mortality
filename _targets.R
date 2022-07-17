@@ -10,7 +10,7 @@ tar_option_set(
     packages = c(
         "sf", "leaflet", # geospatial
         "dplyr", "janitor", "lubridate", "stringr", # wrangling
-        "ggplot2", "ggdist" # plotting
+        "ggplot2", "ggdist", "gt" # tables and plots
     )
 )
 
@@ -50,6 +50,10 @@ list(
     tar_target(
         name = suid,
         command = assemble_suid(suid_from_internal_raw, suid_from_tidycensus_raw)
+    ),
+    tar_target(
+        name = table_by_suid_present,
+        command = make_table_by_suid_present(suid)
     )
     # tar_target(
     #     name = ethn_race_of_suid,
@@ -61,11 +65,7 @@ list(
     #     command = plot_metro_of_suid(),
     #     format = "file"
     # ),
-    # tar_target(
-    #     name = table_of_vars_by_suid_present,
-    #     command = make_table_of_vars_by_suid_present(suid),
-    #     format = "file"
-    # ),
+    
     # tar_target(
     #     name = raincloud_of_black_by_suid_present,
     #     command = plot_raincloud_by_suid_present(suid, "black", "Black Composition of"),

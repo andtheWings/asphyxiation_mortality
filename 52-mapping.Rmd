@@ -1,4 +1,4 @@
-## Mapping
+### Mapping
 
 DPR generated maps using the {[leaflet](https://rstudio.github.io/leaflet/)} package ecosystem in R. His function `make_suid_count_map()`, makes a chloropleth map that overlays onto CartoDB basemap tiles and colors census tracts with a {[viridis](https://sjmgarnier.github.io/viridis/index.html)}-derived palette.
 

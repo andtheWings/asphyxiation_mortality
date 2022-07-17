@@ -1,4 +1,6 @@
-## Pipeline Overview
+## Supplement 1: Analytic Pipeline
+
+### Pipeline Overview
 
 ```{r}
 library(targets)
@@ -6,9 +8,9 @@ library(targets)
 
 DPR orchestrated the data pipeline for the primary data analysis with the package {[targets](https://docs.ropensci.org/targets/)}.
 
-Here is a visual overview of data objects and functions for the pipeline:
+If working with this repository and you want a visual overview of the pipeline, you can execute:
 
-```{r}
+```{r eval=FALSE}
 tar_visnetwork()
 ```
 
