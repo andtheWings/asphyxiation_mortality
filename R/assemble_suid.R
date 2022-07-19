@@ -57,6 +57,11 @@ assemble_suid <- function(suid_from_internal_raw_df, suid_from_tidycensus_raw_sf
                     "Six+ Deaths"
                 )
             ),
+            approx_suid_incidence =
+                round(
+                    suid_count / (pop_under_five / 5) * 1000,
+                    2
+                ),
             across(
                 .cols = starts_with("svi_"),
                 .fns = ~ round((.x * 100), digits = 1)

@@ -54,6 +54,18 @@ list(
     tar_target(
         name = table_by_suid_present,
         command = make_table_by_suid_present(suid)
+    ),
+    # tar_target(
+    #     name = map_of_suid_count_per_tract,
+    #     command = map_suid_count_per_tract(suid)
+    # ),
+    tar_target(
+        name = nb_model_suid_count_per_tract,
+        command = 
+            MASS::glm.nb(
+                suid_count ~ pop_under_five + public_insurance + count_opioid_death + white + count_opioid_death:white,
+                data = suid
+            )
     )
     # tar_target(
     #     name = ethn_race_of_suid,
@@ -81,9 +93,7 @@ list(
     #     command = plot_raincloud_by_suid_present(suid, "svi_socioeconomic", "Socioeconomic Percentile of"),
     #     format = "file"
     # ),
-    # tar_target(
-    #     name = nb_model_of_suid,
-    #     command = fit_nb_model_of_suid(suid)
+
     # ),
     # tar_target(
     #     name = lm_model_of_suid,
