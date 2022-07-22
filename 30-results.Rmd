@@ -1,19 +1,25 @@
+---
+editor_options: 
+  markdown: 
+    wrap: sentence
+---
+
 ## Results
 
 ### Case Characteristics
 
-Our automated method for identifying cases of SUID from medical examiner archives generated 333 prospective cases. 
-After comparison with the gold standard list of cases identified via manual review by a panel of experts, we added XXX cases and removed XXX cases (Table XXX). 
-There were XXX cases not originally identified by manual review that we still deemed to be valid. 
+Our automated method for identifying cases of SUID from medical examiner archives generated 333 prospective cases.
+After comparison with the gold standard list of cases identified via manual review by a panel of experts, we added XXX cases and removed XXX cases (Table XXX).
+There were XXX cases not originally identified by manual review that we still deemed to be valid.
 This process yielded XXX valid SUID cases in total.
 
-We tabulated descriptive characteristics for valid SUID cases (Table XXX). 
-We compared the distributions of select characteristics compared to those in the overall population of Cook County children under the age of 5 (derived from the census). 
+We tabulated descriptive characteristics for valid SUID cases (Table XXX).
+We compared the distributions of select characteristics compared to those in the overall population of Cook County children under the age of 5 (derived from the census).
 SUID cases had a higher prevalence of Black infants and favored location in Chicago (vs. Cook County Suburbs) compared to the reference population.
 
 ### Census Tract Aggregate Characteristics
 
-We tabulated characteristics of census tracts that had at least one case of SUID versus those that did not (Table XXX). 
+We tabulated characteristics of census tracts that had at least one case of SUID versus those that did not (Table XXX).
 Census tracts with at least one case of SUID appeared to have higher proportions of black people, XXX and lower proportions of XXX.
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
@@ -22,13 +28,10 @@ targets::tar_read(table_by_suid_present)
 
 ### Mapping SUID Count per Census Tract
 
-We created an interactive map showing the count of SUID cases color-coded over each census tract. We subjectively noted clusters of deaths on the Westside of Chicago in neighborhoods like Garfield Park, Humboldt Park, and North Lawndale; on the Southside in neighborhoods like Englewood, Pullman, and Woodlawn; and in Southern suburbs like Chicago Heights, Harvey, Hazel Crest, Olympia Fields, and Park Forest.
+We created an interactive map showing the count of SUID cases color-coded over each census tract.
+We subjectively noted clusters of deaths on the Westside of Chicago in neighborhoods like Garfield Park, Humboldt Park, and North Lawndale; on the Southside in neighborhoods like Englewood, Pullman, and Woodlawn; and in Southern suburbs like Chicago Heights, Harvey, Hazel Crest, Olympia Fields, and Park Forest.
 
-```{r echo=FALSE, message=FALSE, warning=FALSE}
-source("R/map_suid_count_per_tract.R")
-map_suid_count_per_tract(targets::tar_read(suid))
-```
- 
+<iframe src="https://danielriggins.com/widgets/cook_county_suid_map.html" title="W3Schools Free Online Web Tutorials" width="100%" height="500px" data-external="1"></iframe>
 
 ### Modeling SUID Count per Census Tract
 
@@ -36,12 +39,15 @@ map_suid_count_per_tract(targets::tar_read(suid))
 #report::report(targets::tar_read(nb_model_suid_count_per_tract)) 
 ```
 
-We fitted a negative-binomial model (estimated using ML) to predict suid_count with pop_under_five, public_insurance, count_opioid_death and white (formula: suid_count ~ pop_under_five + public_insurance + count_opioid_death + white + count_opioid_death:white). The model's explanatory power is substantial (Nagelkerke's R2 = 0.37). The model's intercept, corresponding to pop_under_five = 0, public_insurance = 0, count_opioid_death = 0 and white = 0, is at -2.44 (95% CI [-3.20, -1.70], p < .001). Within this model:
+We fitted a negative-binomial model (estimated using ML) to predict suid_count with pop_under_five, public_insurance, count_opioid_death and white (formula: suid_count \~ pop_under_five + public_insurance + count_opioid_death + white + count_opioid_death:white).
+The model's explanatory power is substantial (Nagelkerke's R2 = 0.37).
+The model's intercept, corresponding to pop_under_five = 0, public_insurance = 0, count_opioid_death = 0 and white = 0, is at -2.44 (95% CI [-3.20, -1.70], p \< .001).
+Within this model:
 
-  - The effect of pop under five is statistically significant and positive (beta = 1.01e-03, 95% CI [2.39e-04, 1.77e-03], p = 0.007; Std. beta = 0.15, 95% CI [0.04, 0.27])
-  - The effect of public insurance is statistically significant and positive (beta = 0.03, 95% CI [0.02, 0.04], p < .001; Std. beta = 0.52, 95% CI [0.33, 0.71])
-  - The effect of count opioid death is statistically non-significant and positive (beta = 2.27e-04, 95% CI [-0.02, 0.02], p = 0.984; Std. beta = 0.43, 95% CI [0.27, 0.59])
-  - The effect of white is statistically significant and negative (beta = -0.02, 95% CI [-0.03, -0.02], p < .001; Std. beta = -0.50, 95% CI [-0.70, -0.30])
-  - The interaction effect of white on count opioid death is statistically significant and positive (beta = 1.73e-03, 95% CI [9.32e-04, 2.52e-03], p < .001; Std. beta = 0.25, 95% CI [0.14, 0.37])
+-   The effect of pop under five is statistically significant and positive (beta = 1.01e-03, 95% CI [2.39e-04, 1.77e-03], p = 0.007; Std. beta = 0.15, 95% CI [0.04, 0.27])
+-   The effect of public insurance is statistically significant and positive (beta = 0.03, 95% CI [0.02, 0.04], p \< .001; Std. beta = 0.52, 95% CI [0.33, 0.71])
+-   The effect of count opioid death is statistically non-significant and positive (beta = 2.27e-04, 95% CI [-0.02, 0.02], p = 0.984; Std. beta = 0.43, 95% CI [0.27, 0.59])
+-   The effect of white is statistically significant and negative (beta = -0.02, 95% CI [-0.03, -0.02], p \< .001; Std. beta = -0.50, 95% CI [-0.70, -0.30])
+-   The interaction effect of white on count opioid death is statistically significant and positive (beta = 1.73e-03, 95% CI [9.32e-04, 2.52e-03], p \< .001; Std. beta = 0.25, 95% CI [0.14, 0.37])
 
 Standardized parameters were obtained by fitting the model on a standardized version of the dataset.

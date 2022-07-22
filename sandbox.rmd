@@ -7,6 +7,11 @@ output: html_document
 
 ```{r}
 library(targets)
+tar_load(suid)
+```
+
+
+```{r}
 library(tidyverse)
 library(stringr)
 library(sf)
@@ -110,6 +115,36 @@ combined_suid |>
         breaks = 2015:2021
     ) +
     theme_linedraw()
+```
+
+
+```{r}
+tar_load(suid)
+library(see)
+library(insight)
+library(modelbased)
+library(dplyr)
+library(purrr)
+library(tibble)
+library(ggplot2)
+```
+
+
+```{r}
+source("R/make_table_for_rootogram.R")
+source("R/plot_rootogram.R")
+
+model_types |> 
+    map(make_table_for_rootogram) |> 
+    map(plot_rootogram)
+```
+    
+
+
+```{r}
+
+plot_rootogram(poisson_root_tbl)
+
 ```
 
 

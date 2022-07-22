@@ -1,0 +1,200 @@
+## Supplement 2: Model Selection
+
+```{r}
+targets::tar_load(suid)
+library(dplyr)
+library(magrittr)
+```
+
+
+This supplement lays out how we selected the final model for predicting the number of SUID cases per census tract (variable `suid_count`).
+
+From inception, we included in all models the variable `pop_under_five` (population of all children under age 5 years per census tract), which served as a quasi-exposure variable to account for variation in the number of people susceptible to an SUID incident.
+
+### Predictor Variable Candidates
+
+To select predictor variable candidates, we sought to balance using variables that were highly correlated with `suid_count`, but not too highly correlated to each other to reduce [multicollinearity](https://www.statology.org/multicollinearity-regression/).
+
+We started by generating a correlation dataframe and filtering for variables that had at least a weak association (> 0.20) with `suid_count`:
+
+```{r}
+suid_correlations <-
+    suid |>
+    as_tibble() |> 
+    select(
+        -fips, 
+        -geometry, 
+        -suid_present,
+        -suid_count_factor
+    ) |>
+    relocate(suid_count) |> 
+    corrr::correlate() |>
+    filter(abs(suid_count) > 0.20) |>
+    arrange(desc(abs(suid_count)))
+
+suid_correlations
+```
+
+`publicinsurance`, the percentage of residents in each census tract on public insurance, had the strongest correlation with `suid_count`. 
+
+Here is the relationship visualized:
+
+```{r}
+plot(correlation::cor_test(as_tibble(suid), "suid_count", "public_insurance"))
+```
+
+In order to minimize multicollinearity with additional predictor variables, we next selected for variables that had some degree of correlation with `suid_count`, but had no more than weak correlation (< 0.5) with `publicinsurance`:
+
+```{r}
+suid_correlations |>
+    filter(abs(suid_count) > 0.20) |>
+    filter(abs(public_insurance) < 0.5)
+```
+
+This just left `count_opioid_death`, the count of opioid-related deaths in each census tract.
+
+```{r}
+plot(correlation::cor_test(as_tibble(suid), "suid_count", "count_opioid_death"))
+```
+
+There was a large outlier of many opioid deaths in a tract with no SUID deaths, but otherwise, there seemed to be a strong positive trend.
+
+To fill out our candidates, we selected the next four variables that correlated most with `suid_count`, without being fully redundant (e.g. not selecting `black` when `white` was already in the list):
+
+- `white` = the percentage of residents in each census tract identifying their race as White 
+- `svi_household_composition_disability` = percentile ranking for each census tract on the [Social Vulnerability Index](https://www.atsdr.cdc.gov/placeandhealth/svi/documentation/pdf/SVI2018Documentation_01192022_1.pdf) for Household Composition & Disability, which is a mash-up of information about households that include people older than 65, people younger than 17, people with disabilities, and/or single-parents
+- `income_gt_75` = the percentage of residents in each census tract whose income were greater than the national 75th percentile
+- `married_females` = the percentage of female residents who were married in each census tract
+
+Here are the summary statistics and visualized distributions of our candidate predictors:
+
+```{r}
+as_tibble(suid) |>
+    select(
+        pop_under_five,
+        public_insurance,
+        count_opioid_death,
+        white,
+        svi_household_composition_disability,
+        income_gt_75,
+        married_females
+    ) %T>%
+    DataExplorer::plot_histogram() |>
+    summary()
+```
+
+### Model Type
+
+We explored the general family of models that expect an outcome distribution to be a [count variable](https://thomaselove.github.io/432-notes/modeling-a-count-outcome-in-ohio-smart.html#a-tobit-censored-regression-model). The distribution types included Poisson, Negative Binomial, and their zero-inflated variants.
+
+First, we compared each model type on its predictive performance using just the exposure variable and an intercept:
+
+```{r}
+list(
+    poisson = 
+        glm(
+            suid_count ~ pop_under_five, 
+            family = poisson(), 
+            data = suid
+        ),
+    zero_infl_poisson = 
+        pscl::zeroinfl(
+            suid_count ~ pop_under_five,
+            data = suid
+        ),
+    neg_bin = 
+        MASS::glm.nb(
+            suid_count ~ pop_under_five,
+            data = suid
+        ),
+    zero_infl_neg_bin = 
+        pscl::zeroinfl(
+            suid_count ~ pop_under_five,
+            dist = "negbin",
+            data = suid
+        )
+) |> 
+compare_performance() |>  
+print_html()
+```
+Although the models seemed generally comparable, the negative binomial model type had both the best Akaike Information Criterion (AIC) and Bayesian Information Criterion (BIC) scores. Minimizing these two scores theoretically optimizes balance between over- and under-fitting to the observed data.
+
+Next, we compared performance of a nested sequence of predictor candidates:
+
+```{r}
+list(
+    base_formula = suid_count ~ pop_under_five,
+    base_formula_plus_one = suid_count ~ pop_under_five + public_insurance,
+    base_formula_plus_two = suid_count ~ pop_under_five + public_insurance + count_opioid_death,
+    base_formula_plus_three = suid_count ~ pop_under_five + public_insurance + count_opioid_death + white,
+    base_formula_plus_four = suid_count ~ pop_under_five + public_insurance + count_opioid_death + white + svi_household_composition_disability,
+    base_formula_plus_five = suid_count ~ pop_under_five + public_insurance + count_opioid_death + white + svi_household_composition_disability + income_gt_75,
+    base_formula_plus_six = suid_count ~ pop_under_five + public_insurance + count_opioid_death + white + svi_household_composition_disability + income_gt_75 + married_females
+) |> 
+    purrr::map(~MASS::glm.nb(.x, data = suid)) |> 
+    compare_performance(rank = TRUE) |>  
+    print_html() 
+```
+
+Since all models were of the same type, in this comparison, we used the `compare_performance()` function's [ranking algorithm](https://easystats.github.io/performance/reference/compare_performance.html#ranking-models), which chose the model with the exposure variable plus 3 covariates to perform the best. 
+
+Then we used the `select_parameters()` function's [heuristic algorithm](https://easystats.github.io/parameters/reference/select_parameters.html) to check if any interaction terms were worth including in the model.
+
+```{r}
+MASS::glm.nb(
+    suid_count ~ (pop_under_five + public_insurance + count_opioid_death + white)^2,
+    data = suid
+) |> 
+parameters::select_parameters() |> 
+parameters::parameters() |> 
+print_html()
+```
+
+The interaction between `ccount_opioid_death` and `white` was proposed by the algorithm and statistically significant, so we included it as the only interaction term.
+
+Next, we compared our final set of predictors in the panel of model types again:
+
+```{r}
+final_models <-
+    list(
+        poisson = 
+            glm(
+                suid_count ~ pop_under_five + public_insurance + count_opioid_death + white + count_opioid_death:white, 
+                family = poisson(), 
+                data = suid
+            ),
+        zero_infl_poisson = 
+            pscl::zeroinfl(
+                suid_count ~ pop_under_five + public_insurance + count_opioid_death + white + count_opioid_death:white,
+                data = suid
+            ),
+        neb_bin = 
+            MASS::glm.nb(
+                suid_count ~ pop_under_five + public_insurance + count_opioid_death + white + count_opioid_death:white,
+                data = suid
+            ),
+        zero_infl_neg_bin = 
+            pscl::zeroinfl(
+                suid_count ~ pop_under_five + public_insurance + count_opioid_death + white + count_opioid_death:white,
+                dist = "negbin",
+                data = suid
+            )
+    ) 
+
+final_models |> 
+    compare_performance() |>  
+    print_html()
+```
+
+Precision-related scores were fairly similar and the R^2 terms were not directly comparable, so we again paid most attention to AIC and BIC. These two scores disagreed on which model type had the best fit, but BIC more emphatically chose the negative binomial model, so we stuck with this type. 
+
+Another way to compare the goodness of fit was with a visual check of [rootograms](https://www.r-bloggers.com/2016/06/rootograms/):
+
+```{r}
+source("R/plot_rootogram.R")
+
+final_models |> 
+    purrr::map(plot_rootogram)
+```
+
+Visually speaking, the negative binomial model type and its zero-inflated variant looked almost identical, so we felt further reassured in selecting the plain, non-zero-inflated type.
