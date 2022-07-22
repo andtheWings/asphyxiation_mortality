@@ -28,9 +28,11 @@ map_suid_count_per_tract <- function(suid_sf) {
             # Add census tract polygons colored to reflect the number of deaths
             leaflet::addPolygons(
                 # No borders to the polygons, just fill
-                stroke = FALSE,
+                color = "gray",
+                weight = 0.25,
+                opacity = 1,
                 # Color according to palette above
-                color = ~ suid_palette(suid_count_factor),
+                fillColor = ~ suid_palette(suid_count_factor),
                 # Group polygons by number of deaths for use in the layer control
                 group = ~ suid_count_factor,
                 # Make slightly transparent
@@ -42,13 +44,13 @@ map_suid_count_per_tract <- function(suid_sf) {
                         "<b>FIPS ID</b>: ", as.character(fips), "</br>",
                         "<b>SUID Count</b>: ", suid_count, " deaths</br>",
                         "<b>Total Population</b>: ", pop_total, " people</br>",
-                        "<b>Population Under 5 Years Old</b>: ", pop_under_five, " people</br>",
+                        "<b>Population Under 5 Years Old</b>: ", pop_under_five, " children</br>",
                         "<b>Rough Incidence</b>: ", approx_suid_incidence, " deaths per 1,000 babies"
                     )
             ) |>
             #Add legend
             leaflet::addLegend(
-                title = "Count of SUID <br> per census tract <br> in Cook County, IL <br> from 2015-2019",
+                title = "Count of SUID Cases<br> per census tract <br> in Cook County, IL <br> from 2015-2019",
                 values = ~ suid_count_factor,
                 pal = suid_palette,
                 position = "topright"
