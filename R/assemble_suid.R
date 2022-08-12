@@ -31,11 +31,12 @@ assemble_suid <- function(suid_from_internal_raw_df, suid_from_tidycensus_raw_sf
         ) |> 
         # Add new variables
         mutate(
-            # Binary variable on whether suid is present in a tract
+            # Binary variable on whether SUID is present in a tract
             suid_present = case_when(
                 suid_count > 0 ~ TRUE,
                 TRUE ~ FALSE
             ),
+            # Create an ordered factor version of SUID count
             suid_count_factor = factor(
                 case_when(
                     suid_count == 0 ~ "No Deaths",
@@ -57,11 +58,19 @@ assemble_suid <- function(suid_from_internal_raw_df, suid_from_tidycensus_raw_sf
                     "Six+ Deaths"
                 )
             ),
+            # Calculate approximate SUID incidence by dividing count by (the population under age 5 / 5)
             approx_suid_incidence =
                 round(
                     suid_count / (pop_under_five / 5) * 1000,
                     2
                 ),
+            approx_suid_incidence =
+                case_when(
+                    is.na(approx_suid_incidence) ~ 0,
+                    is.infinite(approx_suid_incidence) ~ 0,
+                    TRUE ~ approx_suid_incidence
+                ),
+            # Round variables so all percentage variables have the same number of trailing decimals
             across(
                 .cols = starts_with("svi_"),
                 .fns = ~ round((.x * 100), digits = 1)

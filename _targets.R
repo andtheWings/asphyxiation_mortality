@@ -9,8 +9,9 @@ sapply(
 tar_option_set(
     packages = c(
         "sf", "leaflet", # geospatial
-        "dplyr", "janitor", "lubridate", "stringr", # wrangling
-        "ggplot2", "ggdist", "gt" # tables and plots
+        "dplyr", "janitor", "lubridate", "magrittr", "stringr", # wrangling
+        "ggplot2", "ggdist", "gt", # tables and plots
+        "performance" # modeling diagnostics
     )
 )
 
@@ -75,6 +76,17 @@ list(
                 suid_count ~ pop_under_five + public_insurance + count_opioid_death + white + count_opioid_death:white,
                 data = suid
             )
+    ),
+    # Markdown Files
+    tar_target(
+        name = supplement_2_input,
+        command = "53-model_selection.Rmd",
+        format = "file"
+    ),
+    tar_target(
+        name = supplement_2_output,
+        command = rmarkdown::render(supplement_2_input, output_format = "md_document", output_dir = "markdown_output"),
+        format = "file"
     )
     # tar_target(
     #     name = ethn_race_of_suid,

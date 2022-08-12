@@ -1,0 +1,41 @@
+### Check of Model Assumptions
+
+```{r}
+targets::tar_read(nb_model_suid_count_per_tract) |> 
+    performance::check_model()
+```
+#### Influential Outliers
+
+```{r}
+targets::tar_read(nb_model_suid_count_per_tract) |> 
+    performance::check_outliers()
+```
+```{r}
+targets::tar_read(nb_model_suid_count_per_tract) |> 
+    performance::check_model(check = "outliers")
+```
+
+#### 
+
+```{r}
+targets::tar_read(nb_model_suid_count_per_tract) |> 
+    check_model(check = "homogeneity")
+```
+
+```{r}
+targets::tar_read(nb_model_suid_count_per_tract) |> 
+    check_distribution()
+```
+
+```{r}
+targets::tar_read(nb_model_suid_count_per_tract) |> 
+    check_distribution() |> 
+    plot()
+```
+
+```{r}
+targets::tar_read(nb_model_suid_count_per_tract) |> 
+    insight::get_residuals() |> 
+    hist()
+```
+

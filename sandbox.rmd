@@ -23,17 +23,6 @@ tar_load_everything()
 ```
 
 
-```{r}
-suid |>
-    select(-fips, -geometry, -suid_present)  |> 
-    corrr::correlate() |>
-    select(term, suid_count) |> 
-    arrange(desc(abs(suid_count)))
-
-
-```
-
-
 
 ```{r}
 sids_pop_est_and_polygons |> 
@@ -128,6 +117,9 @@ library(purrr)
 library(tibble)
 library(ggplot2)
 ```
+
+
+
 
 
 ```{r}

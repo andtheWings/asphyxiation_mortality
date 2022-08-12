@@ -1,5 +1,7 @@
 plot_rootogram <- function(model_obj) {
     
+    box::use(ggplot2[...])
+    
     observed_df <-
         model_obj |> 
         insight::get_response() |> 

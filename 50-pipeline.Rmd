@@ -1,12 +1,14 @@
-## Supplement 1: Analytic Pipeline
+## Supplement 1: Analytic Pipeline and Custom Functions
 
 ### Pipeline Overview
+
+We hosted both the [code](https://github.com/andtheWings/cook_county_sids_mortality) and [manuscript](https://github.com/andtheWings/cook_county_suid_manuscript) on Github.
+
+We orchestrated the data pipeline for the data analysis with the package {[targets](https://docs.ropensci.org/targets/)}.
 
 ```{r}
 library(targets)
 ```
-
-DPR orchestrated the data pipeline for the primary data analysis with the package {[targets](https://docs.ropensci.org/targets/)}.
 
 If working with this repository and you want a visual overview of the pipeline, you can execute:
 

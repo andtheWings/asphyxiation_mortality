@@ -43,7 +43,7 @@ make_table_by_suid_present <- function(suid_sf) {
             "Employed (%)" = employed,
             "Spanish-speaking (%)" = spanish_language
         ) |> 
-        select(-fips, -suid_count, -suid_count_factor, -pop_total, -geometry) |>
+        select(-fips, -suid_count, -suid_count_factor, -pop_total, -geometry, -neighbors, -weights) |>
         gtsummary::tbl_summary(
             by = suid_present,
             missing = "no"
