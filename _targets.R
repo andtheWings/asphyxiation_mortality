@@ -60,6 +60,15 @@ list(
     #     command = map_suid_count_per_tract(suid)
     # ),
     tar_target(
+        name = global_moran,
+        command = 
+            sfdep::global_moran_perm(
+                x = suid$suid_count,
+                nb = suid$neighbors,
+                wt = suid$weights
+            )
+    ),
+    tar_target(
         name = nb_model_suid_count_per_tract,
         command = 
             MASS::glm.nb(

@@ -1,0 +1,6 @@
+## Introduction
+
+### Previous Literature
+
+@grimsonSearchingHierarchicalClusters1981 presented Monte Carlo simulation methods to statistically test for clustering of geographical areas and to assign the areas into nested groups reflecting the clustered regions. They applied their methods to rates of SIDS in geographical counties of North Carolina, USA from 1974-1978. They determined that clustering of counties with "High Incidence" of SIDS did take place at a statistically significant level. There were two main clusters in the Northeastern and Southeastern regions of the state.
+

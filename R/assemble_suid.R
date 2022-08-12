@@ -69,5 +69,13 @@ assemble_suid <- function(suid_from_internal_raw_df, suid_from_tidycensus_raw_sf
         ) |> 
         st_as_sf()
     
-    return(df1)
+    df2 <-
+        df1 |> 
+        filter(!st_is_empty(df1)) |> 
+        mutate(
+            neighbors = sfdep::st_contiguity(geometry),
+            weights = sfdep::st_weights(neighbors)
+        )
+    
+    return(df2)
 }
