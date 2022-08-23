@@ -1,6 +1,11 @@
 ## Supplement 2: Model Selection
 
 ```{r}
+library(performance)
+```
+
+
+```{r}
 tar_load(suid)
 tar_load(nb_model_suid_count_per_tract)
 ```
@@ -19,7 +24,7 @@ Poisson would have been the simplest model choice, but failed on a check for [ov
 
 ```{r}
 glm(
-    formula = suid_count ~ pop_under_five, 
+    formula = suid_count ~ public_insurance, 
     family = poisson(), data = suid
 ) |> 
     check_overdispersion()
@@ -29,7 +34,7 @@ Using a negative binomial model resolved the overdispersion:
 
 ```{r}
 MASS::glm.nb(
-    suid_count ~ pop_under_five,
+    suid_count ~ public_insurance,
     data = suid
 ) |> 
     check_overdispersion()
@@ -41,7 +46,7 @@ If a negative binomial model is zero-inflated, one can use a variant of the mode
 
 ```{r}
 MASS::glm.nb(
-    suid_count ~ pop_under_five,
+    suid_count ~ public_insurance,
     data = suid
 ) |> 
     check_zeroinflation()
@@ -63,7 +68,8 @@ suid_correlations <-
         -fips, 
         -geometry, 
         -suid_present,
-        -suid_count_factor
+        -suid_count_factor,
+        -approx_suid_incidence
     ) |>
     relocate(suid_count) |> 
     corrr::correlate() |>
@@ -133,13 +139,12 @@ Next, we compared performance of a nested sequence of retrodictor candidates:
 
 ```{r}
 list(
-    base_formula = suid_count ~ pop_under_five,
-    base_formula_plus_one = suid_count ~ pop_under_five + public_insurance,
-    base_formula_plus_two = suid_count ~ pop_under_five + public_insurance + count_opioid_death,
-    base_formula_plus_three = suid_count ~ pop_under_five + public_insurance + count_opioid_death + white,
-    base_formula_plus_four = suid_count ~ pop_under_five + public_insurance + count_opioid_death + white + svi_household_composition_disability,
-    base_formula_plus_five = suid_count ~ pop_under_five + public_insurance + count_opioid_death + white + svi_household_composition_disability + income_gt_75,
-    base_formula_plus_six = suid_count ~ pop_under_five + public_insurance + count_opioid_death + white + svi_household_composition_disability + income_gt_75 + married_females
+    one_beta = suid_count ~ public_insurance,
+    two_betas = suid_count ~ public_insurance + count_opioid_death,
+    three_betas = suid_count ~ public_insurance + count_opioid_death + white,
+    four_betas = suid_count ~ public_insurance + count_opioid_death + white + svi_household_composition_disability,
+    five_betas = suid_count ~ public_insurance + count_opioid_death + white + svi_household_composition_disability + income_gt_75,
+    six_betas = suid_count ~ public_insurance + count_opioid_death + white + svi_household_composition_disability + income_gt_75 + married_females
 ) |> 
     purrr::map(~MASS::glm.nb(.x, data = suid)) |> 
     compare_performance(rank = TRUE) |>  
@@ -154,7 +159,7 @@ Then we used the `select_parameters()` function's [heuristic algorithm](https://
 
 ```{r}
 MASS::glm.nb(
-    formula = suid_count ~ (pop_under_five + public_insurance + count_opioid_death + white)^2,
+    formula = suid_count ~ (public_insurance + count_opioid_death + white)^2,
     data = tar_read(suid)
 ) |> 
 parameters::select_parameters() |> 
@@ -164,6 +169,33 @@ parameters::print_html()
 
 The interaction between `ccount_opioid_death` and `white` was proposed by the algorithm and statistically significant, so we included it as the only interaction term.
 
+```{r}
+list(
+    no_interaction = suid_count ~ public_insurance + count_opioid_death + white,
+    one_interaction = suid_count ~ public_insurance + count_opioid_death + white + count_opioid_death:white,
+    two_interactions = suid_count ~ public_insurance + count_opioid_death + white + count_opioid_death:white + public_insurance:white
+) |> 
+    purrr::map(~MASS::glm.nb(.x, data = suid)) |> 
+    compare_performance(rank = TRUE) |>  
+    print_html() 
+```
+
+```{r}
+library(brms)
+suid$obs <- 1:nrow(suid)
+
+fit <- brm(suid_count ~ public_insurance + count_opioid_death + white + count_opioid_death:white, data = suid, family = poisson())
+```
+
+```{r}
+summary(fit)
+```
+
+```{r}
+plot_rootogram(fit)
+```
+
+
 ### Visually Checking Model Fit
 
 We plotted a [rootogram](https://www.r-bloggers.com/2016/06/rootograms/) of the final model to visualize its goodness of fit:
@@ -171,7 +203,7 @@ We plotted a [rootogram](https://www.r-bloggers.com/2016/06/rootograms/) of the 
 ```{r}
 source("R/plot_rootogram.R")
 
-plot_rootogram(nb_model_suid_count_per_tract)
+plot_rootogram(MASS::glm.nb(suid_count ~ public_insurance + count_opioid_death + white + count_opioid_death:white, data = suid))
 ```
 
 Overall, the model did an excellent job of retrodicting whether a tract had zero incidents, somewhat over-retrodicted tracts with 1 incident, and did a poor job of retrodicting tracts with 2 or more incidents.

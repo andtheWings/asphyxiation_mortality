@@ -122,7 +122,81 @@ vital_stats_for_cook <-
 ```
 
 ```{r}
+beta_ests <-
+    suid |> 
+    mutate(
+        glm_nb_prediction = 
+            insight::get_predicted(
+                MASS::glm.nb(
+                    suid_count ~ public_insurance + count_opioid_death + white + count_opioid_death:white,
+                    data = suid
+                )
+            ),
+        est_risk = (glm_nb_prediction + suid_count) / (glm_nb_prediction + suid_count + beta_prior + ((pop_under_five/5) - suid_count)) * 1000,
+        spatial_est_risk = sfdep::st_lag(est_risk, nb = neighbors, wt = weights)
+    )
+```
 
+```{r}
+
+# Configure color palette
+suid_palette <- 
+    leaflet::colorNumeric(
+        palette = "magma",
+        reverse = TRUE,
+        domain = beta_ests$spatial_est_risk
+    )
+
+leaflet::leaflet(beta_ests) |>
+    # Use CartoDB's background tiles
+    leaflet::addProviderTiles("CartoDB.Positron") |>
+    # Center and zoom the map to Cook County
+    leaflet::setView(lat = 41.816544, lng = -87.749500, zoom = 9) |>
+    # Add button to enable fullscreen map
+    leaflet.extras::addFullscreenControl() |>
+    # Add census tract polygons colored to reflect the number of deaths
+    leaflet::addPolygons(
+        # No borders to the polygons, just fill
+        color = "gray",
+        weight = 0.25,
+        opacity = 1,
+        # Color according to palette above
+        fillColor = ~ suid_palette(spatial_est_risk),
+        # Group polygons by number of deaths for use in the layer control
+        group = ~ suid_count_factor,
+        # Make slightly transparent
+        fillOpacity = 0.5,
+        label = "Click me for more details!",
+        # Click on the polygon to get its ID
+        popup = 
+            ~ paste0(
+                "<b>FIPS ID</b>: ", as.character(fips), "</br>",
+                "<b>Observed SUID</b>: ", suid_count, " death(s)</br>",
+                "<b>Total Population</b>: ", pop_total, " people</br>",
+                "<b>Population Under 5 Years Old</b>: ", pop_under_five, " children</br>",
+                "<b>Est. Risk</b>: ", round(spatial_est_risk, 2), " deaths per 1,000 live births"
+            )
+    ) |>
+    #Add legend
+    leaflet::addLegend(
+        title = "Estimated Risk of SUID<br>per 1,000 live births<br> per census tract <br> in Cook County, IL <br> from 2015-2019",
+        values = ~ spatial_est_risk,
+        pal = suid_palette,
+        position = "topright"
+    ) |>
+    # Add ability to toggle each factor grouping on or off the map
+    leaflet::addLayersControl(
+        overlayGroups = c(
+            "No Deaths", 
+            "One Death", 
+            "Two Deaths", 
+            "Three Deaths", 
+            "Four Deaths", 
+            "Five Deaths", 
+            "Six+ Deaths"
+        ),
+        position = "topleft"
+    )
 ```
 
 
@@ -148,6 +222,7 @@ beta_prior <- total_survivals_for_cook * est_scaling_factor
 
 est_scaling_factor <- median(suid$pop_under_five) / total_births_for_cook
 
+prior <- alpha_prior / (alpha_prior + beta_prior)
 
 
 ```
