@@ -5,29 +5,175 @@ date: "`r Sys.Date()`"
 output: html_document
 ---
 
+
 ```{r}
 library(targets)
-tar_load(suid)
-```
-
-
-```{r}
 library(tidyverse)
 library(stringr)
 library(sf)
 library(tidycensus)
 library(lubridate)
 library(gt)
+```
+
+```{r}
 tar_make()
-tar_load_everything()
+tar_load(suid)
+tar_load(ccme_archive_suid_cases)
+```
+
+```{r}
+summary(suid$pop_under_five)
+```
+
+```{r}
+summary(sqrt(suid$pop_under_five))
+```
+```{r}
+14.6^2
+```
+
+```{r}
+scaling_factor <- (213.6/139398)
+
+
+scaling_factor *
+```
+
+
+```{r}
+DataExplorer::plot_histogram(sqrt(suid$pop_under_five))
+```
+```{r}
+DataExplorer::plot_histogram(births$live_births)
+```
+
+
+```{r}
+summary(suid$approx_suid_incidence)
+```
+
+```{r}
+ccme_archive_suid_cases |> 
+    mutate(
+        year_month = zoo::as.yearmon(mdy_hms(date_of_death)),
+        year_quarter = zoo::as.yearqtr(mdy_hms(date_of_death))
+        
+    ) |> 
+    group_by(year_quarter) |> 
+    summarise(n = n()) |> 
+    ggplot(aes(x = year_quarter, y = n)) +
+    geom_point() +
+    geom_line()
+
+```
+
+```{r}
+#datapasta::df_paste()
+vital_stats_for_cook <-
+    data.frame(
+      stringsAsFactors = FALSE,
+           check.names = FALSE,
+                   County = c("Illinois","Adams",
+                              "Alexander","Bond","Boone","Brown","Bureau","Calhoun",
+                              "Carroll","Cass","Champaign","Chicago",
+                              "Christian","Clark","Clay","Clinton","Coles","Cook"),
+                   `2020` = c(133304,755,56,142,540,
+                              59,339,47,135,169,2107,31087,300,181,154,
+                              389,467,25020),
+                   `2019` = c(140145,773,63,159,565,
+                              57,322,41,134,185,2233,32880,349,168,154,
+                              398,493,26147),
+                   `2018` = c(144828,768,51,154,512,
+                              65,312,37,127,170,2254,34857,360,189,157,
+                              401,485,26930),
+                   `2017` = c(149390,815,70,147,623,
+                              57,324,47,143,180,2296,36321,311,164,141,
+                              428,457,28037),
+                   `2016` = c(154467,845,79,148,574,
+                              68,350,48,138,182,2395,37999,338,180,159,
+                              412,528,28760),
+                   `2015` = c(158101,851,84,142,567,
+                              53,365,44,156,172,2400,39269,360,185,163,
+                              449,531,29524),
+                   `2014` = c(158522,820,107,162,
+                              612,56,321,53,139,174,2437,40137,316,185,163,
+                              425,520,29389),
+                   `2013` = c(156918,845,108,168,
+                              564,61,385,52,137,142,2387,39612,363,192,144,
+                              403,502,29288),
+                   `2012` = c(159152,782,107,153,
+                              561,55,332,45,140,190,2377,40985,354,212,192,
+                              422,495,29250),
+                   `2011` = c(161234,827,108,162,
+                              590,48,333,53,144,189,2398,41532,378,200,147,
+                              433,514,29578),
+                   `2010` = c(164998,812,96,190,636,
+                              44,330,55,149,173,2345,42805,355,197,166,
+                              384,520,30190)
+   ) |> 
+    tidyr::pivot_longer(
+        cols = 2:12,
+        names_to = "year",
+        values_to = "live_births"
+    ) |> 
+    filter(County == "Cook") |> 
+    select(-County)
+```
+
+```{r}
+
+```
+
+
+```{r}
+vital_stats_for_cook <-
+    ccme_archive_suid_cases |> 
+    mutate(year = year(mdy_hms(date_of_death))) |>
+    group_by(year) |> 
+    summarise(deaths = n()) |> 
+    full_join(births, by = "year") |> 
+    filter(year >= 2015 & year <= 2019) |> 
+    mutate(deaths_per_births = deaths / live_births * 1000) 
+
+vital_stats_for_cook
+```
+
+```{r}
+total_births_for_cook <- sum(vital_stats_for_cook$live_births)
+total_deaths_for_cook <- sum(vital_stats_for_cook$deaths)
+total_survivals_for_cook <- total_births_for_cook - total_deaths_for_cook
+alpha_prior <- total_deaths_for_cook * est_scaling_factor
+beta_prior <- total_survivals_for_cook * est_scaling_factor
+
+est_scaling_factor <- median(suid$pop_under_five) / total_births_for_cook
+
+
+
 ```
 
 
 
 ```{r}
+x <- seq(0, 1, 100)
+
+curve(dbeta(x, total_deaths_for_cook, total_births_for_cook - total_deaths_for_cook))
+```
+
+```{r}
+ggplot() +
+  geom_function(fun = dbeta, args = list(shape1 = alpha_prior, shape2 = beta_prior)) +
+    geom_function(fun = dbeta, args = list(shape1 = alpha_prior + 6, shape2 = beta_prior + 0), color = "blue") +
+    coord_cartesian(xlim = c(0,0.1))
+    
+```
+
+```{r}
 sids_pop_est_and_polygons |> 
     ggplot(aes(x = avg_per_household)) +
     geom_histogram()
+
+sd(sqrt(suid$pop_under_five))
 ```
 
 
