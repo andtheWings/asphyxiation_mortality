@@ -1,7 +1,8 @@
 assemble_suid <- function(suid_from_internal_raw_df, suid_from_tidycensus_raw_sf) {
     
     df1 <- 
-        left_join(
+        # Using left_join on internal data rather than full_join decreases from 1363 to 1315
+        full_join(
             suid_from_internal_raw_df,
             suid_from_tidycensus_raw_sf,
             by = c("FIPS" = "fips")
@@ -61,13 +62,13 @@ assemble_suid <- function(suid_from_internal_raw_df, suid_from_tidycensus_raw_sf
             # Calculate approximate SUID incidence by dividing count by (the population under age 5 / 5)
             approx_suid_incidence =
                 round(
-                    suid_count / (pop_under_five / 5) * 1000,
+                    suid_count / pop_under_five * 1000,
                     2
                 ),
             approx_suid_incidence =
                 case_when(
-                    is.na(approx_suid_incidence) ~ 0,
-                    is.infinite(approx_suid_incidence) ~ 0,
+                    is.nan(approx_suid_incidence) ~ 0,
+                    is.infinite(approx_suid_incidence) ~ 1000,
                     TRUE ~ approx_suid_incidence
                 ),
             # Round variables so all percentage variables have the same number of trailing decimals
@@ -80,11 +81,12 @@ assemble_suid <- function(suid_from_internal_raw_df, suid_from_tidycensus_raw_sf
     
     df2 <-
         df1 |> 
+        # Filter step reduces from 1315 to 1284
         filter(!st_is_empty(df1)) |> 
         mutate(
             neighbors = sfdep::st_contiguity(geometry),
             weights = sfdep::st_weights(neighbors)
         )
     
-    return(df2)
+    return(df1)
 }

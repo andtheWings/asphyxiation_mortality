@@ -47,47 +47,47 @@ list(
     tar_target(
         name = suid_from_tidycensus_raw,
         command = get_suid_from_tidycensus_raw()
-    ),
-    tar_target(
-        name = suid,
-        command = assemble_suid(suid_from_internal_raw, suid_from_tidycensus_raw)
-    ),
-    tar_target(
-        name = table_by_suid_present,
-        command = make_table_by_suid_present(suid)
-    ),
+    )
+    # tar_target(
+    #     name = suid,
+    #     command = assemble_suid(suid_from_internal_raw, suid_from_tidycensus_raw)
+    # )
+    # tar_target(
+    #     name = table_by_suid_present,
+    #     command = make_table_by_suid_present(suid)
+    # ),
     # tar_target(
     #     name = map_of_suid_count_per_tract,
     #     command = map_suid_count_per_tract(suid)
     # ),
-    tar_target(
-        name = global_moran,
-        command = 
-            sfdep::global_moran_perm(
-                x = suid$suid_count,
-                nb = suid$neighbors,
-                wt = suid$weights
-            )
-    ),
-    tar_target(
-        name = nb_model_suid_count_per_tract,
-        command = 
-            MASS::glm.nb(
-                suid_count ~ pop_under_five + public_insurance + count_opioid_death + white + count_opioid_death:white,
-                data = suid
-            )
-    ),
-    # Markdown Files
-    tar_target(
-        name = supplement_2_input,
-        command = "53-model_selection.Rmd",
-        format = "file"
-    ),
-    tar_target(
-        name = supplement_2_output,
-        command = rmarkdown::render(supplement_2_input, output_format = "md_document", output_dir = "markdown_output"),
-        format = "file"
-    )
+    # tar_target(
+    #     name = global_moran,
+    #     command = 
+    #         sfdep::global_moran_perm(
+    #             x = suid$suid_count,
+    #             nb = suid$neighbors,
+    #             wt = suid$weights
+    #         )
+    # ),
+    # tar_target(
+    #     name = nb_model_suid_count_per_tract,
+    #     command = 
+    #         MASS::glm.nb(
+    #             suid_count ~ pop_under_five + public_insurance + count_opioid_death + white + count_opioid_death:white,
+    #             data = suid
+    #         )
+    # ),
+    # # Markdown Files
+    # tar_target(
+    #     name = supplement_2_input,
+    #     command = "53-model_selection.Rmd",
+    #     format = "file"
+    # ),
+    # tar_target(
+    #     name = supplement_2_output,
+    #     command = rmarkdown::render(supplement_2_input, output_format = "md_document", output_dir = "markdown_output"),
+    #     format = "file"
+    # )
     # tar_target(
     #     name = ethn_race_of_suid,
     #     command = plot_ethn_race_of_suid(),

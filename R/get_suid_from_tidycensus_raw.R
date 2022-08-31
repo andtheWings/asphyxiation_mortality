@@ -19,9 +19,9 @@ get_suid_from_tidycensus_raw <- function() {
             ),
             state = "IL", # Illinois
             county = 031, # Cook County
-            geometry = TRUE # Import census tract polygons too
+            geometry = FALSE # Import census tract polygons too
         ) |> 
-        st_transform(crs = 4326) |> 
+        # st_transform(crs = 4326) |> 
         # Drop margin of estimate and name variables
         select(-moe, -NAME) |>
         # Convert GEOID to numeric type
@@ -39,13 +39,13 @@ get_suid_from_tidycensus_raw <- function() {
             pop_total = B01003_001,
             pop_under_five = B06001_002,
             avg_peop_per_household = B25010_001
-        ) |> 
+        ) 
         # Put geometry column at the end of the table
-        relocate(
-            geometry,
-            .after = avg_peop_per_household
-        ) |> 
-        st_as_sf()
+        # relocate(
+        #     geometry,
+        #     .after = avg_peop_per_household
+        # ) |> 
+        # st_as_sf()
     
     return(df1)
 }
