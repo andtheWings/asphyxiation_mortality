@@ -51,15 +51,15 @@ list(
     tar_target(
         name = suid_from_tidycensus_raw,
         command = get_suid_from_tidycensus_raw()
+    ),
     tar_target(
         name = suid_from_tidycensus,
         command = wrangle_suid_from_tidycensus(suid_from_tidycensus_raw)
     ),
+    tar_target(
+        name = suid,
+        command = assemble_suid(suid_from_tidycensus, suid_from_internal)
     )
-    # tar_target(
-    #     name = suid,
-    #     command = assemble_suid(suid_from_internal_raw, suid_from_tidycensus_raw)
-    # )
     # tar_target(
     #     name = table_by_suid_present,
     #     command = make_table_by_suid_present(suid)
