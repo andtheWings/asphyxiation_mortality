@@ -43,6 +43,10 @@ list(
         name = suid_from_internal_raw,
         command = readxl::read_xlsx(suid_from_internal_raw_file)
     ),
+    tar_target(
+        name = suid_from_internal,
+        command = wrangle_suid_from_internal(suid_from_internal_raw)
+    ),
     # Source: Tidycensus to Census API
     tar_target(
         name = suid_from_tidycensus_raw,
