@@ -47,6 +47,10 @@ list(
     tar_target(
         name = suid_from_tidycensus_raw,
         command = get_suid_from_tidycensus_raw()
+    tar_target(
+        name = suid_from_tidycensus,
+        command = wrangle_suid_from_tidycensus(suid_from_tidycensus_raw)
+    ),
     )
     # tar_target(
     #     name = suid,
