@@ -1,1 +1,38 @@
 ## Methods
+
+### Data Sources
+
+We sourced census-tract level variables on count of overall population (pop_total) and count of population under age five years old (pop_under_five) from U.S. Census' American Community Survey (###) using the {tidycensus} R package (###). We selected the 2019 vintage of data from the ACS 5-year estimates. The function also returned spatial geometries for each census tract via the {tigris} package (###).
+
+### Bayesian Estimation of SUID Risk with a Global Prior
+
+We estimated the risk of SUID in each census tract using the Beta distribution. 
+
+The prior expected risk of SUID in all census tracts was defined as:
+
+$$\pi \sim Beta(\alpha, \beta)$$
+$$E(\pi) = \frac{\alpha_0}{\alpha_0 + \beta_0}$$
+Where:
+
+- $\pi$ is the risk of SUID
+- $E(\pi)$ is the prior expected mean risk of SUID
+- $\alpha_0$ is the prior expected number of SUID cases in a set of live-births
+- $\beta_0$ is the prior expected number of survival cases in the same set of live-births
+
+In the first iteration of estimation, we set the prior as globally the same for all census tracts. We used the incidence of SUID in Cook County in 2014 and the number of live births in Cook County from 2015-2019 to derive $\alpha_0$ and $\beta_0$ (### IDPH), which we also rescaled such that prior expectations and observed data had similarly weighted influence on the posterior estimate.
+
+The posterior estimated risk of SUID was defined as:
+
+$$ E(\pi_i | \alpha_i, \beta_i) = \frac{\alpha_0 + \alpha_i}{\alpha_0 + \alpha_i + \beta_0 + \beta_i}$$
+Where:
+
+- $E(\pi_i | \alpha_i, \beta_i)$ is the posterior estimated mean risk of SUID for a census tract given $\alpha_i$ and $\beta_i$
+- $\alpha_i$ is the number of SUID cases observed for that tract from 2015-2019
+- $\beta_i$ is the number of survival cases
+
+Because we did not have disaggregated counts of live-births for each census tract, we used the pop_under_five variable as a proxy for the number of live births, and used that to approximate the number of survival events.
+
+Please see supplementary materials for a linked blog post with further details on our process.
+
+
+
