@@ -11,3 +11,12 @@ A fourth challenge is we want to fine tune our prior expectations of risk by usi
 A final challenge is that standard regression models treat each census tract as geographically independent from all others. Here, we incorporate autoregression techniques such that the risk in one tract can diffuse across borders to adjust the expected risk in geographically proximate tracts.
 
 Demonstrating the cumulative value of all the solutions outlined above, this paper will map how estimations of risk change after each challenge is addressed.
+
+### Lit Review
+
+Possible commonalities: 
+- Spatial modeling of SUID
+- Any Bayesian methodologies with infant death
+- Using Beta dist for modeling risk in epidemiology
+
+@ranjanInfantMortalityDeath2022 aka Infant mortality and death clustering at the district level in India: A Bayesian approach. Commonality in that they use Bayesian methodology, but they use a "Geoadditive Model" focused on modeling infant survival in a discrete time series. They are most focused on estimating effects from variables like spatial processes, previous infant death in family, maternal age. Their geographic unit was coarser at the district level of Indian states.
