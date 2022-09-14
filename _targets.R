@@ -94,8 +94,19 @@ list(
         name = live_births_il_mothers,
         command = wrangle_live_births_il_mothers(live_births_il_mothers_raw)
     ),
+    
+    # Combining
+    tar_target(
         name = suid,
         command = assemble_suid(suid_from_tidycensus, suid_from_internal)
+    ),
+    tar_target(
+        name = live_births_from_pop,
+        command = assemble_live_births_from_pop(pops_by_county, live_births_il_mothers)
+    ),
+    
+    # Results
+    tar_target(
     )
     # tar_target(
     #     name = table_by_suid_present,
