@@ -68,6 +68,15 @@ list(
             )
     ),
     tar_target(
+        name = pops_by_county,
+        command = 
+            purrr::map(
+                .x = pops_by_county_raw,
+                .f = ~wrangle_pops_by_county_single_year(.x)
+            ) |> 
+            purrr::reduce(.f = bind_rows)
+    ),
+    
         name = suid,
         command = assemble_suid(suid_from_tidycensus, suid_from_internal)
     )
