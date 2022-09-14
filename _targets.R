@@ -77,6 +77,19 @@ list(
             purrr::reduce(.f = bind_rows)
     ),
     
+    # Name: Live Births from Illinois Resident Mothers
+    # Source: IDPH
+    # URL: https://www.data.illinois.gov/dataset/live-births-from-illinois-resident-mothers
+    # Date Accessed: 2022-09-14
+    tar_target(
+        name = live_births_il_mothers_raw_file,
+        "data/pidphdata-briefbirthdatatableslivebirth_year_county_eth_race.xlsx",
+        format = "file"
+    ),
+    tar_target(
+        name = live_births_il_mothers_raw,
+        command = readxl::read_xlsx(live_births_il_mothers_raw_file)
+    ),
         name = suid,
         command = assemble_suid(suid_from_tidycensus, suid_from_internal)
     )
