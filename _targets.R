@@ -9,7 +9,7 @@ sapply(
 tar_option_set(
     packages = c(
         "sf", "leaflet", # geospatial
-        "dplyr", "janitor", "lubridate", "magrittr", "stringr", # wrangling
+        "dplyr", "janitor", "lubridate", "magrittr", "stringr", "tidyr", # wrangling
         "ggplot2", "ggdist", "gt", # tables and plots
         "performance" # modeling diagnostics
     )
@@ -47,7 +47,9 @@ list(
         name = suid_from_internal,
         command = wrangle_suid_from_internal(suid_from_internal_raw)
     ),
+    
     # Source: Tidycensus to Census API
+    # Pops for Census Tracts
     tar_target(
         name = suid_from_tidycensus_raw,
         command = get_suid_from_tidycensus_raw()
@@ -55,6 +57,15 @@ list(
     tar_target(
         name = suid_from_tidycensus,
         command = wrangle_suid_from_tidycensus(suid_from_tidycensus_raw)
+    ),
+    # Pops for Counties
+    tar_target(
+        name = pops_by_county_raw,
+        command = 
+            purrr::map(
+                .x = 2010:2017,
+                .f = ~get_pops_by_county_raw(.x)
+            )
     ),
     tar_target(
         name = suid,
