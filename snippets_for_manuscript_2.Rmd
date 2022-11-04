@@ -1,0 +1,72 @@
+## Intro
+
+A second challenge is that SUID is (thankfully) a rare event and the geographic areas are small. 
+A sizable majority of census tracts in Cook County did not observe any events of SUID from 2015-2019. 
+If we estimate risk purely from observed data, we might naively conclude that the risk of SUID in the majority of tracts was zero, when in fact we're facing issues with detecting risk that is quite small, but not zero. 
+Here, we use Bayesian estimation of a beta distribution to combine observed data with prior expectations to create more principled estimates.
+
+A third challenge is we know the denominator of risk--the number of live births--for the county as a whole, but not for each individual census tract. 
+Without a fine-grained understanding of the denominator, we cannot scale estimates of risk such that our prior expectations and observed data have similarly weighted impacts. 
+Here we approximate the denominator using the population of children under 5 in each tract obtained from the U.S. Census.
+
+A fourth challenge is we want to fine tune our prior expectations of risk by using knowledge of other socioeconomic factors in each census tract, which we accomplish using a nested negative binomial regression model of the expected count of SUID deaths.
+
+A final challenge is that standard regression models treat each census tract as geographically independent from all others. 
+Here, we incorporate autoregression techniques such that the risk in one tract can diffuse across borders to adjust the expected risk in geographically proximate tracts.
+
+Demonstrating the cumulative value of all the solutions outlined above, this paper will map how estimations of risk change after each challenge is addressed.
+
+### Lit Review
+
+Possible commonalities: 
+- Spatial modeling of SUID
+- Any Bayesian methodologies with infant death
+- Using Beta dist for modeling risk in epidemiology
+
+@ranjanInfantMortalityDeath2022 aka "Infant mortality and death clustering at the district level in India: A Bayesian approach". Commonality in that they use Bayesian methodology, but they use a "Geoadditive Model" focused on modeling infant survival in a discrete time series. They are most focused on estimating effects from variables like spatial processes, previous infant death in family, maternal age. Their geographic unit was coarser at the district level of Indian states.
+
+## Methods
+
+
+### Bayesian Estimation of SUID Risk
+
+We estimated the risk of SUID in each census tract using the Beta-Binomial model:
+
+$$\pi \sim Beta(\alpha, \beta)$$ $$Y|\pi \sim Binomial(n, \pi)$$
+
+Where:
+
+-   $\pi$ is the risk of SUID modeled by a Beta distribution with hyperparameters $\alpha$ and $\beta$
+-   $Y|\pi$ is the count of SUID cases modeled by a Binomial distribution with parameters $n$ and $\pi$
+-   $n$ is the number of births
+
+#### Using a Global Prior
+
+In the first iteration of risk estimation, we set the prior distribution's hyperparameters as the same for all census tracts and derived them from the incidence of SUID in Cook County as a whole in 2014.
+
+$$\mu_0 = \sigma_0 = 8.8 \times 10^{-4}$$
+
+Where:
+
+-   $\mu_0$ is the prior mean SUID risk
+-   $\sigma_0$ is the prior standard deviation of SUID risk
+
+$$\alpha_0 = \frac{\mu_0}{\sigma_0} = 1$$
+
+$$\beta_0 = \frac{1-\mu_0}{\sigma_0} \approx 1135$$
+
+Where:
+
+-   $\alpha_0$ symbolizes the case count of SUID and $\beta_0$ symbolizes the survival count out of $\alpha_0 + \beta_0$ live-births
+
+From the prior hyperparameters, the posterior for each tract was estimated as:
+
+$$E(\pi_i | Y = y_i) = \frac{\alpha_0 + y_i}{\alpha_0 + \beta_0 + n_i}$$
+
+Where:
+
+-   $E(\pi_i | Y = y_i)$ is read as the posterior mean risk of SUID in an indexed census tract given $y_i$ SUID cases are observed out $n_i$ live-births.
+
+Because we did not have disaggregated counts of live-births for each census tract, we used the pop_under_five variable as a proxy for the number of live births.
+
+Please see the supplementary materials for a linked blog post with further details on our process.
