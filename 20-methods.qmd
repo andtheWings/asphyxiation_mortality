@@ -1,0 +1,51 @@
+## Methods
+
+### Data Sources and Manipulation
+
+\[Description of how CCME data was obtained and of the query for teasing out SUID cases\]. We sought all cases of SUID that occurred within Cook County, IL during the time period of 2015-2019.
+
+Validity of SUID case identifications was assessed by team members from the Sudden Unexpected Infant Death Case Registry for Cook County \[CITATION\].
+
+\[Description of the geocoding process\]. After geocoding, counts of SUID cases were aggregated to the census tract level.
+
+We sourced census-tract level variables from U.S. Census' American Community Survey (###) by \[team's method before data delivered to Daniel\].
+
+### Pipeline
+
+All steps in the data pipeline downstream from those described above were performed in the R computing environment while relying heavily on the {tidyverse} suite of package extensions. Data cleaning additionally utilized convenience functions from the {janitor} package. The pipeline itself was orchestrated by specification using the {targets} package.
+
+Data tables were constructed using the {gt} package and its derivative {gtsummary}.
+
+Geospatial manipulation and mapping were performed using the {sf} and {leaflet} packages.
+
+### Model
+
+A model was specified in the pipeline to further demonstrate how data can be automatically fed into analytic outputs. 
+The {tidymodels} and {easystats} suites of packages were used to construct and assess the model. 
+The model outcome was prediction of the SUID case count in each census tract of Cook County. 
+Because this is a count variable, we decided to use a generalized linear model using the negative binomial distribution. 
+Negative binomial was chosen instead of the Poisson distribution because overdispersion was detected in the outcome.
+
+Data was divided into spatially-clustered folds using {spatialsample} package. 80% of the data was apportioned from the each of the folds to training the model and 20% to testing performance.
+
+Model predictors are outlined in @tbl-predictors. 
+The model was not structured to quantify causal effects of these predictors.
+The count of opioid-related deaths was hypothesized to reflect similar patterns of count variability at the census tract level. 
+Percentage on public insurance was intended as a proxy for overall access to and quality of healthcare for each census tract population. 
+Percentage of Non-Hispanic Whites was selected because this group has been conceptualized as the primary beneficiaries of systemic racism, which we hypothesized influences rates of SUID. 
+These predictors were selected from a broader pool initially by strength of their correlation coefficients with SUID case count and subsequently by their effect on model performance metrics like AIC, BIC, RMSE, and Nagelkerke's R^2. 
+The {performance} package provided useful heuristic methods during this process.
+
+| Name               | Definition                                                                                   |
+|----------------------|--------------------------------------------------|
+| count_opioid_death | The count of opioid-related deaths taking place in each census tract during the study period |
+| public_insurance   | Percentage of census tract residents utilizing publicly-funded health insurance              |
+| white              | Percentage of census tract residents identifying as Non-Hispanic White                       |
+
+: Predictor Variables {#tbl-predictors}
+
+There was no explicitly missing data from the analysis in the sense that each census tract had an estimate for the outcome value and its predictors. 
+However, these estimates may be influenced by biases in data collection leading to under- or over-counting.
+
+Once the final model was selected, we calibrated it on the training set, then assessed the same performance metrics on the test set.
+
