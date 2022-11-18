@@ -6,11 +6,12 @@ make_table_by_suid_present <- function(suid_sf) {
         mutate(
             pop_under_five = 
                 round(
-                    pop_under_five / pop_total * 100, 
+                    pop_under_five_est / pop_total_est * 100, 
                     digits = 1
                 )
         ) |> 
-        rename(
+        select(
+            suid_present,
             "Black (%)" = black,
             "White (%)" = white,
             "Hispanic (%)" = hispanic,
@@ -22,7 +23,7 @@ make_table_by_suid_present <- function(suid_sf) {
             "Divorced, widowed males (%)" = divorced_widowed_males,
             "Married females (%)" = married_females,
             "Married males (%)" = married_males,
-            "Average number of people per household" = avg_peop_per_household,
+            #"Average number of people per household" = avg_peop_per_household,
             "Earning > national 75th percentile (%)" = income_gt_75,
             "Earning < national 10th percentile (%)" = income_lt_10,
             "Earning < national 25th percentile (%)" = income_lt_25,
@@ -43,7 +44,7 @@ make_table_by_suid_present <- function(suid_sf) {
             "Employed (%)" = employed,
             "Spanish-speaking (%)" = spanish_language
         ) |> 
-        select(-fips, -suid_count, -suid_count_factor, -pop_total, -geometry, -neighbors, -weights) |>
+        #select(-fips, -suid_count, -suid_count_factor, -pop_total_est, -pop_under_five_est, -pop_under_five, -pop_total_moe, -pop_under_five_moe,  -geometry, -neighbors, -weights) |>
         gtsummary::tbl_summary(
             by = suid_present,
             missing = "no"
@@ -55,12 +56,12 @@ make_table_by_suid_present <- function(suid_sf) {
             stat_2 = md("**SUID Present**, n = 237"),
         ) |> 
         tab_row_group(md("**Drug Use**"), "Opioid-related deaths (count)") |>
-        tab_header(
-            md(
-                "Comparing Cook County, IL, Census Tracts <br>
-                by Presence of SUID from 2015-2019"
-            )
-        ) |> 
+        # tab_header(
+        #     md(
+        #         "Comparing Cook County, IL, Census Tracts <br>
+        #         by Presence of SUID from 2015-2019"
+        #     )
+        # ) |> 
         tab_row_group(
             md("**Social Vulnerability Index**"),
             matches("^SVI")
@@ -69,14 +70,20 @@ make_table_by_suid_present <- function(suid_sf) {
             md("**Health Insurance Status**"),
             matches("insurance")
         ) |>
-        tab_row_group(md("**Household Density**"), "Average number of people per household") |> 
+        #tab_row_group(md("**Household Density**"), "Average number of people per household") |> 
         tab_row_group(
             md("**Marital Status**"),
             matches("^Married|^Divorced")
         ) |>
         tab_row_group(
             md("**Income**"),
-            starts_with("Earning")
+            c(
+                "Earning < national 10th percentile (%)",
+                "Earning < national 25th percentile (%)",
+                "Earning < national 50th percentile (%)",
+                "Earning < national 75th percentile (%)",
+                "Earning > national 75th percentile (%)"
+            )
         ) |>
         tab_row_group(md("**Employment**"), "Employed (%)") |> 
         tab_row_group(

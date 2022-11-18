@@ -41,23 +41,23 @@ wrangle_suid_from_internal <- function(suid_from_internal_raw_df) {
             suid_count_factor = 
                 factor(
                     case_when(
-                        suid_count == 0 ~ "No Deaths",
-                        suid_count == 1 ~ "One Death",
-                        suid_count == 2 ~ "Two Deaths",
-                        suid_count == 3 ~ "Three Deaths",
-                        suid_count == 4 ~ "Four Deaths",
-                        suid_count == 5 ~ "Five Deaths",
-                        suid_count > 5 ~ "Six+ Deaths"
+                        suid_count == 0 ~ "No Cases",
+                        suid_count == 1 ~ "One Case",
+                        suid_count == 2 ~ "Two Cases",
+                        suid_count == 3 ~ "Three Cases",
+                        suid_count == 4 ~ "Four Cases",
+                        suid_count == 5 ~ "Five Cases",
+                        suid_count > 5 ~ "Six+ Cases"
                     ),
                     ordered = TRUE,
                     levels = c(
-                        "No Deaths", 
-                        "One Death", 
-                        "Two Deaths", 
-                        "Three Deaths", 
-                        "Four Deaths", 
-                        "Five Deaths", 
-                        "Six+ Deaths"
+                        "No Cases", 
+                        "One Case", 
+                        "Two Cases", 
+                        "Three Cases", 
+                        "Four Cases", 
+                        "Five Cases", 
+                        "Six+ Cases"
                     )
                 ),
             .after = suid_count

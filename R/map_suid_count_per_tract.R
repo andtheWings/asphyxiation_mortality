@@ -6,13 +6,13 @@ map_suid_count_per_tract <- function(suid_sf) {
             palette = "magma",
             reverse = TRUE,
             levels = c(
-                "No Deaths", 
-                "One Death", 
-                "Two Deaths", 
-                "Three Deaths", 
-                "Four Deaths", 
-                "Five Deaths", 
-                "Six+ Deaths"
+                "No Cases", 
+                "One Case", 
+                "Two Cases", 
+                "Three Cases", 
+                "Four Cases", 
+                "Five Cases", 
+                "Six+ Cases"
             )
         )
     
@@ -37,20 +37,21 @@ map_suid_count_per_tract <- function(suid_sf) {
                 group = ~ suid_count_factor,
                 # Make slightly transparent
                 fillOpacity = 0.5,
-                label = "Click me for more details!",
+                label = "Click for more details!",
                 # Click on the polygon to get its ID
                 popup = 
                     ~ paste0(
                         "<b>FIPS ID</b>: ", as.character(fips), "</br>",
-                        "<b>SUID Count</b>: ", suid_count, " deaths</br>",
-                        "<b>Total Population</b>: ", pop_total, " people</br>",
-                        "<b>Population Under 5 Years Old</b>: ", pop_under_five, " children</br>",
-                        "<b>Rough Incidence</b>: ", approx_suid_incidence, " deaths per 1,000 babies"
+                        "<b>SUID Count</b>: ", suid_count, " cases</br>",
+                        "<b>Total Population</b>: ", pop_total_est, " people</br>",
+                        "<b>Population Under 5 Years Old</b>: ", pop_under_five_est, " children</br>",
+                        "<b>Modeled Births</b>: ", modeled_births_adj, " births</br>",
+                        "<b>Rough Incidence</b>: ", rough_suid_incidence, " cases per 100,000 births"
                     )
             ) |>
             #Add legend
             leaflet::addLegend(
-                title = "Count of SUID Cases<br> per census tract <br> in Cook County, IL <br> from 2015-2019",
+                title = "Legend",
                 values = ~ suid_count_factor,
                 pal = suid_palette,
                 position = "topright"
@@ -58,13 +59,13 @@ map_suid_count_per_tract <- function(suid_sf) {
             # Add ability to toggle each factor grouping on or off the map
             leaflet::addLayersControl(
                 overlayGroups = c(
-                    "No Deaths", 
-                    "One Death", 
-                    "Two Deaths", 
-                    "Three Deaths", 
-                    "Four Deaths", 
-                    "Five Deaths", 
-                    "Six+ Deaths"
+                    "No Cases", 
+                    "One Case", 
+                    "Two Cases", 
+                    "Three Cases", 
+                    "Four Cases", 
+                    "Five Cases", 
+                    "Six+ Cases"
                 ),
                 position = "topleft"
             )
