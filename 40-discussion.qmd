@@ -1,0 +1,66 @@
+## Discussion
+
+### Principal Results
+
+Our process for querying data from the Cook County Medical Examiner was able to identify cases of SUID from 2015-2019 with a high degree of fidelity to those identified by the county's official registry.
+We aggregated these cases to the census tract level and found that those containing a case of SUID during the study period also had subjectively higher proportions of Black residents, lower proportions of White residents, and higher indices of social vulnerability. 
+We built a logistic regression model to predict for presence of SUID and achieved moderate accuracy.
+As an aide for deciding where to target preventive services in each public health jurisdiction, we mapped census tracts using classification based on historic observation and future prediction.
+As an example, our results suggested Cook County Department of Public Health should focus prevention efforts in the suburbs of Blue Island, Calumet City, Chicago Heights, Dyer, Harvey, Hazel Crest, and Matteson.
+Other institutions can easily adapt this analytic workflow to determine priority areas for their own jurisdictions.
+
+### Limitations
+
+<!-- **Validity of Data Sources:**  -->
+<!-- The outcomes of our analysis--count/presence of SUID cases--were derived from data records of the Cook County Medical Examiner's Office (CCMEO).  -->
+<!-- It is not feasible for CCMEO to investigate every case of death in its large urban jurisdiction. -->
+<!-- According to their website, "More than 16,000 deaths are reported to the [CCMEO] annually. Of these, around 5,600 are accepted for further investigation."  -->
+<!-- However, we expect extremely high coverage specifically for cases of SUID since they inherently fall within the criterion for obligatory investigation of a death happening "suddenly when in apparent good condition". -->
+<!-- On the other hand, CCMEO can only investigate cases for which it is aware and it is possible that there is geospatial variability in rates of reporting--leading to systemic errors in rate estimations. -->
+<!-- We expect that correction of such bias would only lead to further accentuation of trends we observe within the observed data. -->
+
+<!-- **Intended impact on individuals and society:** -->
+<!-- We built this model to guide local health departments toward priority areas of the county in need of preventive services.  -->
+<!-- We used variables from the SVI dataset in an effort to bake considerations of equity and justice into the model's recommendations. -->
+<!-- We also chose the threshold for predicting a positive presence of SUID so that the model would slightly favor sensitivity over specificity in order to be more inclusive of regions that might potentially benefit from services. -->
+<!-- Based on its historical practices when presented with areas of geographic priority (e.g. during COVID-19 vaccination campaigns), we expect our health department to use the model recommendations as a justification for directing resources toward these communities in need, and not as an excuse to add further blame to families beset by societal disadvantages. -->
+
+Our study has limitations.
+First, a Durbin-Watson test of our model for autocorrelated residuals rejected the null hypothesis, suggesting that observations were not independent of each other.
+This was at least partially due to the interconnected nature of census tracts in physical space.
+Indeed, a Moran I test also rejected the null hypothesis, suggesting presence of spatial autocorrelation.
+Second, our model did not account for measurement error in our covariates, which are estimated by the American Community Survey using sub-samples of the population.
+Failure to account for the margins of error and for spatial autocorrelation risked introducing systematic bias into our model predictions [@bazuinHowACSGets2013].
+
+One means of addressing these limitations is to implement a hierarchical Bayesian model of spatial measurement error [@bernardinelliDiseaseMappingErrors1997].
+We attempted to do so using the geostan R package [@connordoneganGeostanPackage], but preliminary attempts yielded warnings from the software that MCMC sampling chains did not converge--significantly raising the risk of inaccurate parameter estimates.
+A third limitation, which may have contributed to non-convergence, was that we did not have access to estimates of the denominator for incidence of SUID (the count of live-births in each tract during the study period).
+The model implemented in geostan requires an "offset" denominator variable, so we used population counts of children under 5 as proxy, but this may have contributed additional imprecision that hampered the MCMC sampling algorithm's ability to converge.
+
+A final limitation was that not enough time had passed to empirically test our model's future predictions. 
+Decision makers at local health departments might be more confident in the model's performance if they could see how it fared at predicting outside of the training dataset. 
+
+We attempted to mitigate all these limitations in our model by contextualizing its predictions on the map with historic observations. 
+We reasoned that if a decision maker saw that a census tract has a positive forward prediction and a positive past observation, this made a more compelling argument for high risk than either piece of information alone.
+
+### Comparison with Prior Work
+
+Our findings are consistent with the broader body of research on the ecology of infant mortality.
+Several other studies have also identified correlation between infant mortality and social factors like alcohol/drug use, education, employment, immigration, insurance, involvement of child protective services, poverty, racism, and segregation [@drakeDescriptiveGeospatialAnalysis2019; @chambersExposuresStructuralRacism2020a; @bandoliMaternalInfantEnvironmental2022; @johnsonNeighborhoodPovertyAmerican2008; @guestEcologyRaceSocioeconomic1998; @hearstEffectRacialResidential2008].
+
+Some studies have posited direct causal relationships between ecologic factors and infant mortality, but the evidence is still equivocal.
+Both Hearst et al. [@hearstEffectRacialResidential2008] and Johnson et al. [@johnsonNeighborhoodPovertyAmerican2008] used propensity score matching as a means of isolating effects, the former for residential segregation on Black infant mortality and the latter for neighborhood poverty on American Indian infant mortality.
+Both were unable to detect an influence, but emphasized that their inability to detect effects may have been due to limitations in size of sampling pools to achieve adequate counterfactual comparisons.
+Our study does not attempt to identify causal effects and instead focuses on helping local health departments to target precise regions of their jurisdictions for intervention.
+
+Several other studies have also used maps to describe variation in geospatial incidence of SUID.
+Drake et al. [@drakeDescriptiveGeospatialAnalysis2019] used kernel density estimation on point patterns to identify hot spots of SUID in Harris County, TX.
+Fee and Tarrell [@caitline.feeGeographicalAnalysisSudden2017] visualized how regional variation of SIDS in Douglas County, NE closely correlated with regional variation of risk factors like maternal tobacco use and low infantile birth weight.
+Grimson et al. [@grimsonSearchingHierarchicalClusters1981] mapped incidence of SIDS across counties of North Carolina and demonstrated a statistical method for identifying clusters.
+To our knowledge, we are the first study to visualize these trends across a fine resolution of areal units specifically in Cook County, IL and to use a classification scheme combining modeled future predictions with historic observations.
+
+### Conclusions
+
+Cook County, IL is still beset by racial and socioeconomic disparities in SUID outcomes. 
+Our process for compiling and analyzing cases will allow practitioners to more quickly address such disparities with efforts targeted to regions of the county most in need of prevention services.
+We suggest conducting listening sessions with families previously affected by SUID and with community-based organizations in these areas to determine next steps.

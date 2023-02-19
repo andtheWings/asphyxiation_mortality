@@ -1,51 +1,82 @@
 ## Methods
 
-### Data Sources and Manipulation
+### Study Design, Setting, Variables, and Sources
 
-\[Description of how CCME data was obtained and of the query for teasing out SUID cases\]. We sought all cases of SUID that occurred within Cook County, IL during the time period of 2015-2019.
+We conducted a cross-sectional retrospective study concerning cases of SUID in census tracts of Cook County, IL.
 
-Validity of SUID case identifications was assessed by team members from the Sudden Unexpected Infant Death Case Registry for Cook County \[CITATION\].
+The vintage of a variable was context-specific.
+The overall chronological scheme was to observe the SUID outcome from 2015-2019, compare descriptive variables from 2019 in census tracts with and without SUID observed, use older variables from 2014 for model training, and use newer variables from 2020 for model predictions of the future period of 2021-2025 (@tbl-variables).
 
-\[Description of the geocoding process\]. After geocoding, counts of SUID cases were aggregated to the census tract level.
+For the outcome, *Description from collaborator of how CCME data was obtained and of the query for teasing out SUID cases* [@MedicalExaminerCasea]. 
+Validity of SUID case identifications was assessed by team members from the Sudden Unexpected Infant Death Case Registry for Cook County \[CITATION\]. 
+*Description from collaborator of the geocoding process.* 
+After geocoding, counts of SUID cases were aggregated by count to the census tract level. 
 
-We sourced census-tract level variables from U.S. Census' American Community Survey (###) by \[team's method before data delivered to Daniel\].
+There were 1315 census tracts with non-zero populations included in our analysis from 2014-2019.
+In 2020, tracts were slightly redrawn for the decennial census, so we made forward predictions on the new set of 1,331 census tracts with non-zero populations.
+
+We sourced all other tract-level variables from U.S. Census' "American Community Survey" (ACS-5) and from CDC data products "PLACES: Local Data for Better Health" and the "Social Vulnerability Index" (SVI) [@AmericanCommunitySurvey; @PLACESLocalData; @SocialVulnerabilityIndex].
+
+
+
+| Purpose                    | Variable Label                         | Variable Name           | Source | Vintage    |
+|----------------------------|----------------------------------------|-------------------------|--------|------------|
+| Census Tract ID            | FIPS Code                              | fips                    |        |            |
+| Observed Outcome           | SUID Case Count                        | suid_count              | CCMEO  | 2015-2019  |
+| Observed Outcome           | SUID Presence                          | suid_present            | CCMEO  | 2015-2019  |
+| Contemporaneous Comparison | Median Age                             | e_median_age            | ACS-5  | 2019       |
+| Contemporaneous Comparison | Sex Ratio                              | e_sex_ratio             | ACS-5  | 2019       |
+| Contemporaneous Comparison | Non-Hispanic White, Alone              | ep_non_hisp_white_alone | ACS-5  | 2019       |
+| Contemporaneous Comparison | Non-Hispanic Black, Alone              | ep_non_hisp_black_alone | ACS-5  | 2019       |
+| Contemporaneous Comparison | Asian, Any                             | ep_asian_any            | ACS-5  | 2019       |
+| Contemporaneous Comparison | American Indian and Alaska Native, Any | ep_aian_any             | ACS-5  | 2019       |
+| Contemporaneous Comparison | Hispanic, Any                          | ep_hispanic_any         | ACS-5  | 2019       |
+| Contemporaneous Comparison | Overall SVI                            | rpl_themes              | SVI    | 2019       |
+| Contemporaneous Comparison | Socioeconomic SVI                      | rpl_theme1              | SVI    | 2019       |
+| Contemporaneous Comparison | Household Composition SVI              | rpl_theme2              | SVI    | 2019       |
+| Contemporaneous Comparison | Minority Status/Language SVI           | rpl_theme3              | SVI    | 2019       |
+| Contemporaneous Comparison | Housing Type/Transportation SVI        | rpl_theme4              | SVI    | 2019       |
+| Contemporaneous Comparison | Currently Smoking                      | ep_smoking              | PLACES | 2018       |
+| Contemporaneous Comparison | Binge Drinking                         | ep_binge                | PLACES | 2018       |
+| Model Training             | Percentage Minority Residents          | ep_minrty               | SVI    | 2014       |
+| Model Training             | Percentage Unemployed                  | ep_unemp                | SVI    | 2014       |
+| Model Prediction           | Percentage Minority Residents          | ep_minrty               | SVI    | 2020       |
+| Model Prediction           | Percentage Unemployed                  | ep_unemp                | SVI    | 2020       |
+| Mapping                    | Census Tract GIS Polygons              | geometry                | TIGER  | 2019; 2020 |
+
+: Variables and Sources {#tbl-variables}
 
 ### Pipeline
 
-All steps in the data pipeline downstream from those described above were performed in the R computing environment while relying heavily on the {tidyverse} suite of package extensions. Data cleaning additionally utilized convenience functions from the {janitor} package. The pipeline itself was orchestrated by specification using the {targets} package.
+We performed all steps in the data pipeline downstream from the SQL query in the R computing environment [@ProgrammingLanguage] while relying heavily on the {tidyverse} suite of packages [@TidyversePackageSuite]. 
+Data cleaning additionally utilized convenience functions from the {janitor} and {RSocrata} packages [@samfirkeJanitorPackage; @hughdevlinRSocrataPackage]. 
+The pipeline was orchestrated by specification using the {targets} package [@williammichaellandauTargetsPackage].
 
-Data tables were constructed using the {gt} package and its derivative {gtsummary}.
+We constructed data tables using the {gt} package and its companion {gtsummary} [@richardiannoneGtPackage; @danield.sjobergGtsummaryPackage].
 
-Geospatial manipulation and mapping were performed using the {sf} and {leaflet} packages.
+We performed geospatial manipulation and mapping with the {sf}, {leaflet}, {opencage}, and {tigris} packages [@edzerpebesmaSfPackage; @LeafletPackage; @danielpossenriedeOpencagePackage; @kylewalkerTigrisPackage] along with their back-end infrastructure [@CARTOBasemapStyles; @frankwarmerdamGDAL; @GEOS; @volodymyragafonkinLeaflet; @OpenCageGeocodingAPI; @OpenStreetMap; @PROJ; @TIGERDataProducts]. 
+
+### Descriptive Comparison
+
+We performed descriptive analysis for comparing tracts with and without SUID by comparing median values (with IQR’s). 
+This is because most of the distributions were not normal.
 
 ### Model
 
-A model was specified in the pipeline to further demonstrate how data can be automatically fed into analytic outputs. 
-The {tidymodels} and {easystats} suites of packages were used to construct and assess the model. 
-The model outcome was prediction of the SUID case count in each census tract of Cook County. 
-Because this is a count variable, we decided to use a generalized linear model using the negative binomial distribution. 
-Negative binomial was chosen instead of the Poisson distribution because overdispersion was detected in the outcome.
+We modeled SUID case counts in each census tract using maximum likelihood estimation in the {MASS} package [@brianripleyMASSPackage]. We used the negative binomial family of generalized linear models instead of the Poisson family because overdispersion was detected.
 
-Data was divided into spatially-clustered folds using {spatialsample} package. 80% of the data was apportioned from the each of the folds to training the model and 20% to testing performance.
+We modeled presence of SUID in each census tract using logistic regression in base R (also by maximum likelihood estimation).
 
-Model predictors are outlined in @tbl-predictors. 
-The model was not structured to quantify causal effects of these predictors.
-The count of opioid-related deaths was hypothesized to reflect similar patterns of count variability at the census tract level. 
-Percentage on public insurance was intended as a proxy for overall access to and quality of healthcare for each census tract population. 
-Percentage of Non-Hispanic Whites was selected because this group has been conceptualized as the primary beneficiaries of systemic racism, which we hypothesized influences rates of SUID. 
-These predictors were selected from a broader pool initially by strength of their correlation coefficients with SUID case count and subsequently by their effect on model performance metrics like AIC, BIC, RMSE, and Nagelkerke's R^2. 
-The {performance} package provided useful heuristic methods during this process.
+The {easystats} suite of packages was used to assess each model on metrics like area under the receiver operator characteristic curve (AUC; ROC), sensitivity, specificity, Akaike/Bayesian information criteria (AIC; BIC), and R<sup>2</sup> [@danielludeckeEasystatsPackageSuite].
 
-| Name               | Definition                                                                                   |
-|----------------------|--------------------------------------------------|
-| count_opioid_death | The count of opioid-related deaths taking place in each census tract during the study period |
-| public_insurance   | Percentage of census tract residents utilizing publicly-funded health insurance              |
-| white              | Percentage of census tract residents identifying as Non-Hispanic White                       |
+<!-- Data was divided into spatially-clustered folds using {spatialsample} package. 80% of the data was apportioned from the each of the folds to training the model and 20% to testing performance. -->
 
-: Predictor Variables {#tbl-predictors}
+We selected model prediction variables from the full pool of variables used to compute SVI [@SocialVulnerabilityIndex].
+We ultimately settled on using the estimated percentage of unemployed residents (ep_unemp) and the estimated percentage of minority residents (ep_minrty) due to a combination of high Pearson correlation coefficients with outcome and each belonging to different thematic domains of the SVI.
+We found that inclusion of more than two predictor variables decreased the overall performance of the model.
+The model was *not* structured to quantify causal effects of these predictors.
 
-There was no explicitly missing data from the analysis in the sense that each census tract had an estimate for the outcome value and its predictors. 
-However, these estimates may be influenced by biases in data collection leading to under- or over-counting.
+### Missing Data
 
-Once the final model was selected, we calibrated it on the training set, then assessed the same performance metrics on the test set.
+There was no explicitly missing data from the analysis in the sense that each census tract had an estimate for the outcome value and its predictors. However, these estimates could have been influenced by biases in data collection leading to under- or over-counting.
 

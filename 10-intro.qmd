@@ -1,0 +1,37 @@
+## Introduction
+
+### Background
+
+Sudden Unexpected Infant Death (SUID) exacts a severe, lasting toll on bereaved family members and society at large. 
+At the familial level, loss of an infant may put caregivers--especially birth mothers--at heightened risk for Prolonged Grief Disorder where the process of healing and acceptance evades realization [@goldsteinGriefMothersSudden2018]. 
+At the societal level, 20% of all post-neonatal infant mortality in the United States is ascribed just to Sudden Infant Death Syndrome (SIDS), a subset of SUID [@GBDCompare].
+
+United States health agencies define SUID as "the death of an infant younger than 1 year of age that occurs suddenly and unexpectedly".
+Sometimes, medical investigation identifies a cause (e.g. suffocation/entrapment related to unsafe sleep conditions), but when a full investigation does not reveal one, such cases are defined as SIDS [@CommonSIDSSUID].
+
+The "Back to Sleep" campaign initiated in 1994 helped significantly reduce rates of SUID at global, national, and Illinois state levels. However, further reductions have not been achieved since the early 2000's [@shapiro-mendozaEpidemiologySuddenInfant2018; @SIDSSleepRelatedInfant]. 
+One barrier to mortality prevention efforts has been the inequitable distribution of protective/harmful factors in different communities leading to disparate outcomes. 
+For example, the White population of Illinois had a SUID rate of about 64 cases per 100,000 infants in 2014, while the Black population had a rate of about 172 per 100,000 [@SIDSSleepRelatedInfant].
+
+Geographic inequities may be obscured when summarizing information at the country or state level, but stark contrasts emerge when disaggregating to more granular levels [@chodrowStructureInformationSpatial2017]. 
+This may be because historic forces of racial and socioeconomic segregation (e.g. redlining and racial covenants) were enforced at the neighborhood level [@rothsteinColorLawForgotten2017].
+The Chicago metropolitan region remains heavily segregated to this day [@acsCostSegregationNational2017].
+
+Proponents of precision public health argue that fine-grained characterization not only of location, but also of time, demographics, risk/protective factors, and outcomes enables health service providers to intervene on behalf of communities most disparately impacted by conditions like SUID. 
+Without precision, providers risk exacerbating inequity by bolstering resources in sub-groups already well-supplied, while neglecting sub-groups with highest need [@hortonOfflineDefencePrecision2018]. 
+Nevertheless, precision is necessary but not sufficient if findings can't be delivered in a timely, yet accurate manner.
+Without timely, accurate results, practitioners are left with stale estimates and emerging hot spots might be left unidentified. 
+Recent studies underscore the challenges inherent in striking such a balance [@macdonaldComparingAsphyxiaUnexplained2022].
+
+Flanagan et al. [@flanaganSocialVulnerabilityIndex2011] developed the Social Vulnerability Index to enable local government entities to precisely identify census tract locations of communities vulnerable to the consequences of natural disasters. 
+They derived the index from census variables grouped across four thematic domains: Socioeconomic Status, Household Characteristics, Racial/Ethnic Minority Status, and Housing Type/Transportation. 
+Since the tool's introduction, researchers have applied it beyond disaster management to a broad array of health-related topics like cardiovascular disease [@jainAssociationSocialVulnerability2022], traumatic injury [@herrera-escobarSocialVulnerabilityIndex2022], and vaccine uptake [@bhuiyanUsingSocialVulnerability2022].
+Because CDC publishes SVI metrics for all census tracts across the United States, tools built using the SVI in one jurisdiction can readily be adapted to others.
+
+### Objectives
+
+Here we describe efforts by the Cook County Health Center for Health Equity and Innovation (CCH CHEI) to develop tools striking a balance between precision, accuracy, and timeliness when analyzing SUID cases in our county. 
+Our team developed a semi-automated pipeline for querying SUID data from the Cook County Medical Examiner's Office, geocoding each case, aggregating to the census tract level, enriching with contextual data, summarizing into descriptive tables, generating interactive maps, and modeling predictions of census tract cases.
+The ultimate goal for the analysis was to describe unique characteristics of census tracts affected by SUID and to recommend where prevention efforts should be targeted for greatest impact based on predicted clusters.
+Based on State and County-level data, we hypothesized that census tracts affected by SUID would exhibit higher characteristics of social vulnerability and that these characteristics would be a useful means of predicting future affected tracts.
+Historically, such tracts have been located in the Western and Southern regions of Cook County.

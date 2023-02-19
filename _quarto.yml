@@ -1,0 +1,14 @@
+project:
+  title: "cook_county_sids_mortality"
+  output-dir: _output
+  render: 
+    - index.qmd
+
+format: html
+# toc: true
+# number-sections: true
+bibliography: citations.bib
+csl: sage-vancouver-brackets.csl
+execute: 
+  echo: false
+

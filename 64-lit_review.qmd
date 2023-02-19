@@ -1,0 +1,34 @@
+### Lit Review of Spatial modeling of SUID
+
+
+#### Genralizability
+@ahnCulturalVariationFactors2021 investigated variation in focus of research articles on SUID-related factors based on the geospatial region or culture from which each article originated. 
+Dichotomizing articles into ether Asian- or Western-cultural origin, they noted that Western-originating articles placed more of an emphasis on ethnicity and smoking as risk factors, which is consistent with focuses of our research here. 
+They speculate that this reflects greater multi-ethnic diversity and higher rates of (reported) maternal smoking in Western-cultural countries.
+
+@bandoliMaternalInfantEnvironmental2022 evaluated a comprehensive set of risk factors for SUID in San Diego, CA. 
+Exploring geospatial variation as a sub-analysis, they too identified clustered sub-regions with increased incidence. 
+However, they did not detect racial or socioeconomic patterns of association with the geospatial variability. 
+Nonetheless, they too recognize that disparate distribution highlights the importance of community-level strategy for prevention and education.
+
+@chambersExposuresStructuralRacism2020a surveyed pregnant and early post-partum Black women about their experiences with racism. 
+Over 90% of their respondents reported having experienced racism in at least one domain. 
+Respondents from zip codes with higher proportions of Black residents and low-income households reported having experienced racism across significantly more domains. 
+
+@drakeDescriptiveGeospatialAnalysis2019 also analyzed medical examiner records pertaining to Sudden Unexpected Infant Death. 
+Their descriptive and geospatial analyses were at the analytical level of individual cases. 
+They summarized a number of demographic and contextual variables related to each case. 
+They also generated hot spot maps for case incidence using kernel density estimation methods. 
+Similar to our analysis at the census tract level, they described disproportionate association with Black racial identification and with unemployment.
+
+@guestEcologyRaceSocioeconomic1998 similarly explored associations between socioeconomic conditions and racial segregation on variation in Infant Mortality across areal units (i.e. Chicago community areas). 
+They too found a strong association between unemployment and mortality. 
+However, their research did not map their results and did not recommend targeted areas for intervention.
+
+@hearstEffectRacialResidential2008 used propensity score matching to measure the effect of residential segregation at the city-level on post-neonatal mortality. 
+They were unable to detect a statistically meaningful, independent effect. 
+The benefit of their study is the method's ability to differentiate causal from ecologic associations, but it is possible that measuring segregation's effect at a different geographic scope (e.g. census tract) would yield different results.
+
+@ranjanInfantMortalityDeath2022 aka "Infant mortality and death clustering at the district level in India: A Bayesian approach". 
+Commonality in that they use Bayesian methodology, but they use a "Geoadditive Model" focused on modeling infant survival in a discrete time series. 
+They are most focused on estimating effects from variables like spatial processes, previous infant death in family, maternal age. Their geographic unit was coarser at the district level of Indian states.        

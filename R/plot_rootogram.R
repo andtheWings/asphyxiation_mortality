@@ -60,10 +60,10 @@ plot_rootogram <- function(model_obj) {
             fill = "gray60"
         ) +
         geom_line(
-            color = "red"
+            #color = "red"
         ) +
         geom_point(
-            color = "red"
+            #color = "red"
         ) +
         labs(
             title = 

@@ -9,7 +9,7 @@ sapply(
 tar_option_set(
     packages = c(
         "sf", "leaflet", # geospatial
-        "dplyr", "janitor", "lubridate", "magrittr", "purrr", "stringr", "tidyr", # wrangling
+        "dplyr", "janitor", "lubridate", "magrittr", "readr", "purrr", "stringr", "tidyr", # wrangling
         "ggplot2", "ggdist", "gt", # tables and plots
         "performance" # modeling
     )
@@ -17,7 +17,7 @@ tar_option_set(
 
 list(
     
-    ## Data Wrangling
+    # Outcome Source
 
     # Source: Internally generated file
     # Received in email from HZ on 01/21/22
@@ -35,229 +35,234 @@ list(
         command = wrangle_suid_from_internal(suid_from_internal_raw)
     ),
     
-    # Source: U.S. Census Bureau, DP05, ACS-5 2019 Demographics for Cook County Census Tracts
+    # Geospatial Sources
+    
+    # Tigris Census Tract Geometries
+    tar_target(
+        name = cook_county_tracts_2019,
+        command = tigris::tracts(state = "IL", county = 031, year = 2019) |> mutate(GEOID = as.numeric(GEOID))
+    ),
+    tar_target(
+        name = cook_county_tracts_2020,
+        command = tigris::tracts(state = "IL", county = 031, year = 2020) |> mutate(GEOID = as.numeric(GEOID))
+    ),
+    
+    # Reverse Geocoding Tracts
+    tar_target(
+        name = tract_rev_geocodes_2019,
+        command = reverse_geocode_tigris(cook_county_tracts_2019)
+    ),
+    tar_target(
+        name = tract_rev_geocodes_2020,
+        command = reverse_geocode_tigris(
+            anti_join(
+                as_tibble(cook_county_tracts_2020), 
+                as_tibble(cook_county_tracts_2019), 
+                by = "GEOID"
+            )
+        )
+    ),
+    tar_target(
+        name = tract_rev_geocodes_all,
+        command = compile_geocoded_tracts(tract_rev_geocodes_2019, tract_rev_geocodes_2020)
+    ),
+    
+    
+    # Model Training Source
+    
+    # Source: CDC/ATSDR SVI Data, 2014, United States, Census Tracts
+    # URL: https://www.atsdr.cdc.gov/placeandhealth/svi/data_documentation_download.html
+    # Downloaded: 2022-12-07
+    tar_target(
+        name = svi_2014_file,
+        "data/SVI2014_US.csv",
+        format = "file"    
+    ),
+    tar_target(
+        name = svi_2014_raw,
+        command = read_csv(svi_2014_file) |> filter(STCNTY == 17031)
+    ),
+    tar_target(
+        name = svi_2014,
+        command = wrangle_svi_2014(svi_2014_raw)
+    ),
+    
+    # Model Prediction Source
+    
+    # Source: CDC/ATSDR SVI Data, 2020, United States, Census Tracts
+    # URL: https://www.atsdr.cdc.gov/placeandhealth/svi/data_documentation_download.html
+    # Downloaded: 2022-12-10
+    tar_target(
+        name = svi_2020_file,
+        "data/SVI2020_US.csv",
+        format = "file"    
+    ),
+    tar_target(
+        name = svi_2020_raw,
+        command = read_csv(svi_2020_file) |> filter(STCNTY == 17031)
+    ),
+    tar_target(
+        name = svi_2020,
+        command = wrangle_svi_2020(svi_2020_raw)
+    ),
+    
+    # Descriptive Sources
+    
+    # Source: CDC/ATSDR SVI Data, 2018, United States, Census Tracts
+    # URL: https://www.atsdr.cdc.gov/placeandhealth/svi/data_documentation_download.html
+    # Downloaded: 2022-12-07
+    tar_target(
+        name = svi_2018_file,
+        "data/SVI2018_US.csv",
+        format = "file"    
+    ),
+    tar_target(
+        name = svi_2018_raw,
+        command = read_csv(svi_2018_file) |> filter(STCNTY == 17031)
+    ),
+    tar_target(
+        name = svi_2018,
+        command = wrangle_svi_2018(svi_2018_raw)
+    ),
+    
+    # Source: U.S. Census Bureau, S0101, ACS-5 2019 Age/Sex Demographics for Cook County Census Tracts
+    # Downloaded on 2022-11-29
+    tar_target(
+        name = acs_s0101_file,
+        "data/ACSST5Y2019.S0101-Data.csv",
+        format = "file"
+    ),
+    tar_target(
+        name = acs_s0101_raw,
+        command = read_csv(acs_s0101_file) |>  slice(-1)
+    ),
+    tar_target(
+        name = acs_s0101,
+        command = wrangle_acs_s0101(acs_s0101_raw)
+    ),
+    
+    # Source: U.S. Census Bureau, DP05, ACS-5 2019 Race/Ethnicity Demographics for Cook County Census Tracts
     # Downloaded on 2022-11-18
     tar_target(
-        name = acs_5_demographics_file,
+        name = acs_dp05_file,
         "data/ACSDP5Y2019.DP05-Data.csv",
         format = "file"
     ),
     tar_target(
-        name = acs_5_demographics_raw,
-        command = slice(readr::read_csv(acs_5_demographics_file), -1)
+        name = acs_dp05_raw,
+        command = read_csv(acs_dp05_file) |> slice(-1)
     ),
     tar_target(
-        name = acs_5_demographics,
-        command = wrangle_acs_5_demographics(acs_5_demographics_raw)
-    ),
-    
-    # Source: U.S. Census Bureau, S2704, ACS-5 2019 Public Insurance Coverage for Cook County Census Tracts
-    # Downloaded on 2022-11-18
-    tar_target(
-        name = acs_5_insurance_file,
-        "data/ACSST5Y2019.S2704-Data.csv",
-        format = "file"
-    ),
-    tar_target(
-        name = acs_5_insurance_raw,
-        slice(readr::read_csv(acs_5_insurance_file), -1)
-    ),
-    tar_target(
-        name = acs_5_insurance,
-        command = wrangle_acs_5_insurance(acs_5_insurance_raw)
+        name = acs_dp05,
+        command = wrangle_acs_dp05(acs_dp05_raw)
     ),
     
-    # Source Tigris Tract Geometries
+    # Source: PLACES: Local Data for Better Health, Census Tract Data 2021 release
+    # URL: https://chronicdata.cdc.gov/500-Cities-Places/PLACES-Local-Data-for-Better-Health-Census-Tract-D/373s-ayzu
     tar_target(
-        name = cook_county_tracts,
-        command = tigris::tracts(state = "IL", county = 031, year = 2019) |> mutate(GEOID = as.numeric(GEOID))
+        name = places_raw,
+        command = RSocrata::read.socrata("https://chronicdata.cdc.gov/resource/373s-ayzu.csv?countyfips=17031&year=2019")
+    ),
+    tar_target(
+        name = places,
+        command = wrangle_places(places_raw)
     ),
     
-    #Combining
+    # Combined descriptive data sources
     tar_target(
-        name = suid,
-        command = assemble_suid(suid_from_internal, acs_5_demographics, acs_5_insurance, cook_county_tracts)
+        name = suid_descriptive_data,
+        command = 
+            assemble_suid(cook_county_tracts_2019, suid_from_internal, places, acs_dp05, acs_s0101, svi_2018) |> 
+            filter(!is.na(suid_present))
+    ),
+    
+    # Description Results
+    tar_target(
+        name = table_suid_counts,
+        command = tabulate_suid_counts(suid_from_internal)
+    ),
+    tar_target(
+        name = table_by_suid_present,
+        command = tabulate_by_suid_present(suid_descriptive_data)
+    ),
+    tar_target(
+        name = plot_of_white_by_suid_present,
+        command = plot_by_suid_present(suid_descriptive_data, "ep_non_hisp_white_alone", "Non-Hispanic White Racial Composition (%)")
+    ),
+    tar_target(
+        name = plot_of_black_by_suid_present,
+        command = plot_by_suid_present(suid_descriptive_data, "ep_non_hisp_black_alone", "Non-Hispanic Black Racial Composition (%)")
+    ),
+    
+    # Model Training
+    tar_target(
+        name = suid_training_data,
+        command = assemble_suid(cook_county_tracts_2019, suid_from_internal, svi_2014) |> filter(!is.na(suid_count))
+    ),
+    tar_target(
+        name = negbinomial_full_model,
+        command = 
+            MASS::glm.nb(
+                suid_count ~ ep_unemp + ep_minrty, 
+                data = suid_training_data
+            )
+    ),
+    tar_target(
+        name = negbinomial_intercept_model,
+        command = 
+            MASS::glm.nb(
+                suid_count ~ 1, 
+                data = suid_training_data
+            )
+    ),
+    tar_target(
+        name = linear_full_model,
+        command = 
+            lm(
+                suid_count ~ ep_unemp + ep_minrty, 
+                data = suid_training_data
+            )
+    ),
+    tar_target(
+        name = logistic_full_model,
+        glm(
+            suid_present ~ ep_unemp + ep_minrty,
+            data = suid_training_data,
+            family = binomial(link = "logit") 
+        )
+    ),
+    tar_target(
+        name = logistic_intercept_model,
+        glm(
+            suid_present ~ 1,
+            data = suid_training_data,
+            family = binomial(link = "logit") 
+        )
+    ),
+    
+    # Model Prediction
+    tar_target(
+        name = suid_prediction_data,
+        command = 
+            assemble_suid(cook_county_tracts_2020, suid_from_internal, svi_2020) |> 
+            wrangle_suid_prediction_data(
+                logistic_full_model, 
+                threshold = 0.19
+            )
+    ),
+    
+    # Model Results
+    tar_target(
+        name = table_logistic_performance,
+        command = tabulate_logistic_performance(logistic_full_model, logistic_intercept_model)
+    ),
+    tar_target(
+        name = plot_of_rocs,
+        command = plot_rocs(logistic_full_model, logistic_intercept_model)
+    ),
+    tar_target(
+        name = table_2_by_2,
+        command = tabulate_2_by_2(suid_prediction_data)
     )
-    # tar_target(
-    #     name = spatial_resampling_suid_raw,
-    #     command = #rsample::vfold_cv(suid, v = 5, repeats = 3)
-    #         map(
-    #             .x = 1:100,
-    #             .f =
-    #                 ~spatialsample::spatial_block_cv(suid, v = 5, method = "random") |>
-    #                 rename(fold_id = id) |>
-    #                 mutate(repeat_id = paste0("Repeat", as.character(.x)))
-    #         ) |>
-    #         reduce(bind_rows)
-    # ),
     
-    
-    
-    # 
-    # ## Results
-    # tar_target(
-    #     name = table_by_suid_present,
-    #     command = make_table_by_suid_present(suid)
-    # ),
-    # tar_target(
-    #     name = nb_model_suid_count_per_tract,
-    #     command =
-    #         MASS::glm.nb(
-    #             suid_count ~ public_insurance + count_opioid_death + white + count_opioid_death:white,
-    #             data = suid
-    #         )
-    # )
-    
-    
-    
-    
-    
-    
-    # DEPRECATED
-    # # Source: Tidycensus to Census API
-    # # Pops for Census Tracts
-    # tar_target(
-    #     name = suid_from_tidycensus_raw,
-    #     command = get_suid_from_tidycensus_raw()
-    # )
-    # tar_target(
-    #     name = suid_from_tidycensus,
-    #     command = wrangle_suid_from_tidycensus(suid_from_tidycensus_raw)
-    # )
-    # # Children Under 5 Population by County
-    # tar_target(
-    #     name = under_five_by_county_raw,
-    #     command = get_under_five_by_county_raw(2019)
-    # ),
-    # tar_target(
-    #     name = under_five_by_county,
-    #     command = wrangle_under_five_by_county(under_five_by_county_raw)
-    # ),
-    # # Source: Cook County Medical Examiner's Office Case Archive
-    # # https://hub-cookcountyil.opendata.arcgis.com/datasets/4f7cc9f13542463c89b2055afd4a6dc1_0/explore
-    # # Last pulled May 24th
-    # tar_target(
-    #     ccme_archive_raw_file,
-    #     "data/Medical_Examiner_Case_Archive.csv",
-    #     format = "file",
-    # ),
-    # tar_target(
-    #     ccme_archive_raw,
-    #     read_ccme_archive_csv(ccme_archive_raw_file)
-    # ),
-    # tar_target(
-    #     ccme_archive_suid_cases,
-    #     wrangle_ccme_archive_suid_cases(ccme_archive_raw)
-    # ),
-    # Name: Live Births from Illinois Resident Mothers
-    # Source: IDPH
-    # URL: https://www.data.illinois.gov/dataset/live-births-from-illinois-resident-mothers
-    # Date Accessed: 2022-09-14
-    # tar_target(
-    #     name = live_births_il_mothers_raw_file,
-    #     "data/pidphdata-briefbirthdatatableslivebirth_year_county_eth_race.xlsx",
-    #     format = "file"
-    # ),
-    # tar_target(
-    #     name = live_births_il_mothers_raw,
-    #     command = readxl::read_xlsx(live_births_il_mothers_raw_file)
-    # ),
-    # tar_target(
-    #     name = live_births_il_mothers,
-    #     command = wrangle_live_births_il_mothers(live_births_il_mothers_raw)
-    # ),
-    # # Live births by county
-    # tar_target(
-    #     name = births_by_county_raw,
-    #     command = 
-    #         purrr::map(
-    #             .x = 2015:2019,
-    #             .f = ~get_births_by_county_raw(.x)
-    #         )
-    # ),
-    # tar_target(
-    #     name = births_by_county,
-    #     command = wrangle_births_by_county(births_by_county_raw)
-    # ),
-    # tar_target(
-    #     name = births_and_under_five_by_county,
-    #     command = inner_join(under_five_by_county, births_by_county, by = "GEOID")
-    # ),
-    # tar_target(
-    #     name = model_births_from_under_five_by_county,
-    #     command = 
-    #         MASS::glm.nb(
-    #             births_est ~ log(pop_under_five_est), 
-    #             data = births_and_under_five_by_county
-    #         )
-    # ),
-    # tar_target(
-    #     name = dists_for_global_prior_comparison,
-    #     command = generate_dists_for_global_prior_comparison(suid)
-    # ),
-    # tar_target(
-    #     name = figure_global_prior_comparison,
-    #     command = visualize_global_prior_comparison(dists_for_global_prior_comparison)
-    # ),
-    # tar_target(
-    #     name = table_global_prior_comparison,
-    #     command = tabulate_global_prior_comparison(dists_for_global_prior_comparison)
-    # )
-    
-    # tar_target(
-    #     name = global_moran,
-    #     command = 
-    #         sfdep::global_moran_perm(
-    #             x = suid$suid_count,
-    #             nb = suid$neighbors,
-    #             wt = suid$weights
-    #         )
-    # ),
-    # # Markdown Files
-    # tar_target(
-    #     name = supplement_2_input,
-    #     command = "53-model_selection.Rmd",
-    #     format = "file"
-    # ),
-    # tar_target(
-    #     name = supplement_2_output,
-    #     command = rmarkdown::render(supplement_2_input, output_format = "md_document", output_dir = "markdown_output"),
-    #     format = "file"
-    # )
-    # tar_target(
-    #     name = ethn_race_of_suid,
-    #     command = plot_ethn_race_of_suid(),
-    #     format = "file"
-    # ),
-    # tar_target(
-    #     name = metro_of_suid,
-    #     command = plot_metro_of_suid(),
-    #     format = "file"
-    # ),
-    
-    # tar_target(
-    #     name = raincloud_of_black_by_suid_present,
-    #     command = plot_raincloud_by_suid_present(suid, "black", "Black Composition of"),
-    #     format = "file"
-    # ),
-    # tar_target(
-    #     name = raincloud_of_white_by_suid_present,
-    #     command = plot_raincloud_by_suid_present(suid, "white", "% White Residents"),
-    #     format = "file"
-    # ),
-    # tar_target(
-    #     name = raincloud_of_svi_socioeconomic_by_suid_present,
-    #     command = plot_raincloud_by_suid_present(suid, "svi_socioeconomic", "Socioeconomic Percentile of"),
-    #     format = "file"
-    # ),
-
-    # ),
-    # tar_target(
-    #     name = lm_model_of_suid,
-    #     command = fit_lm_model_of_suid(suid)
-    # ),
-    # tar_target(
-    #     name = rootogram_table,
-    #     command = summarize_rootogram_table(suid, lm_model_of_suid, nb_model_of_suid)
-    # )
 )

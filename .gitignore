@@ -22,3 +22,17 @@ render1c0e93d133415.rds
 _targets/
 
 markdown_output/
+
+/.quarto/
+
+_output/
+
+20-methods_files/
+
+30-results_files/
+
+tables_and_figures/
+
+*.html
+
+sandbox.rmd

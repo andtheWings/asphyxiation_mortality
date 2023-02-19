@@ -1,43 +1,42 @@
 ## Supplement 2: Model Selection
 
 ```{r}
+library(tidyverse)
+library(sf)
+library(targets)
+library(correlation)
 library(performance)
+
+tar_load(suid_training_data)
 ```
 
+This supplement lays out how we selected the final model for predicting the number of SUID cases per census tract during 2015-2019 (variable `suid_count`) from variables in the 2014 vintage of the [Social Vulnerability Index (SVI) dataset](https://www.atsdr.cdc.gov/placeandhealth/svi/).
 
-```{r}
-tar_load(suid)
-tar_load(nb_model_suid_count_per_tract)
-```
-
-This supplement lays out how we selected the final model for [retrodicting](https://wikidiff.com/predict/retrodict) the number of SUID cases per census tract (variable `suid_count`).
-
-Our base model included the variable `pop_under_five` (population of all children under age 5 years per census tract), which served as a quasi-exposure variable to account for variation in the number of people susceptible to an SUID incident.
+<!-- Our base model included the variable `pop_under_five` (population of all children under age 5 years per census tract), which served as a quasi-exposure variable to account for variation in the number of people susceptible to an SUID incident. -->
 
 ### Choosing Model Type
 
-We explored the general family of models that expect an outcome to be distributed as a [count](https://thomaselove.github.io/432-notes/modeling-a-count-outcome-in-ohio-smart.html#a-tobit-censored-regression-model). These distribution types included Poisson, Negative Binomial, and their zero-inflated variants.
+We explored the general family of models that expect an outcome to be distributed as a [count](https://thomaselove.github.io/432-notes/modeling-a-count-outcome-in-ohio-smart.html#a-tobit-censored-regression-model). These distribution types include Poisson, Negative Binomial, and their zero-inflated variants.
 
 #### Overdispersion
 
-Poisson would have been the simplest model choice, but failed on a check for [overdispersion](https://stats.stackexchange.com/questions/554622/meaning-of-overdispersion-in-statistics) when using the base model.
+Poisson would have been the simplest model choice, but is unable to account for [overdispersion](https://stats.stackexchange.com/questions/554622/meaning-of-overdispersion-in-statistics), which was present in our data:
 
 ```{r}
 glm(
-    formula = suid_count ~ public_insurance, 
-    family = poisson(), data = suid
-) |> 
-    check_overdispersion()
+    formula = suid_count ~ 1, 
+    family = poisson(), 
+    data = suid_train
+) |> check_overdispersion()
 ```
 
 Using a negative binomial model resolved the overdispersion:
 
 ```{r}
 MASS::glm.nb(
-    suid_count ~ public_insurance,
-    data = suid
-) |> 
-    check_overdispersion()
+    suid_count ~ 1,
+    data = suid_train
+) |> check_overdispersion()
 ```
 
 #### Zero-inflation
@@ -46,67 +45,197 @@ If a negative binomial model is zero-inflated, one can use a variant of the mode
 
 ```{r}
 MASS::glm.nb(
-    suid_count ~ public_insurance,
-    data = suid
-) |> 
-    check_zeroinflation()
+    suid_count ~ 1,
+    data = suid_train
+) |> check_zeroinflation()
 ```
 
 Therefore we settled on a negative binomial model type as our final choice.
 
-### Identifying Retrodictor Candidates
+### Identifying Predictor Candidates
 
-To select retrodictor variable candidates, we sought balance between using variables that were highly correlated with `suid_count` and not using variables too highly correlated with each other (see [multicollinearity](https://www.statology.org/multicollinearity-regression/)).
-
-We started by generating a correlation dataframe and filtering for variables that had at least a weak association (> 0.20) with `suid_count`:
+We generated a dataframe containing correlation coefficients for each variable to `suid_count`:
 
 ```{r}
 suid_correlations <-
-    suid |>
+    suid_train |>
     as_tibble() |> 
     select(
-        -fips, 
-        -geometry, 
-        -suid_present,
-        -suid_count_factor,
-        -approx_suid_incidence
+        suid_count,
+        matches("^ep_")
     ) |>
-    relocate(suid_count) |> 
-    corrr::correlate() |>
-    filter(abs(suid_count) > 0.20) |>
+    corrr::correlate() |> 
     arrange(desc(abs(suid_count))) 
 
-suid_correlations[,1:2]
+suid_correlations[1:10,1:2]
 ```
 
-`publicinsurance`, the percentage of residents in each census tract on public insurance, had the strongest correlation with `suid_count`. 
+Variables in the SVI dataset are broken up into four thematic categories. From each theme, we chose the most correlated variable for inclusion in the model: 
 
-Here is the relationship visualized:
+- Theme 1 (Socioeconomic): `ep_unemp` - Estimated percentage of unemployed civilians (age 16+)
+- Theme 2 (Household Composition/Disability): `ep_sngpnt` - Estimated percentage of single parent households with children under 18, 2010-2014 ACS
+- Theme 3 (Minority Status/Language): `ep_minrty` - Estimated percentage of minority persons (all persons except white, non-Hispanic), 2010-2014 ACS
+- Theme 4 (Housing Type/Transportation): `ep_noveh` - Estimated percentage of households with no vehicle available 
+ 
+Here are the relationships visualized:
 
 ```{r}
-as_tibble(suid) |> 
-    correlation::cor_test("suid_count", "public_insurance") |> 
+suid_train |> 
+    ggplot(aes(x = ep_unemp, y = suid_count)) +
+    geom_point() +
+    labs(x = "Unemployed (%)", y = "SUID cases") +
+    theme_bw()
+```
+
+```{r}
+suid_train |> 
+    ggplot(aes(x = ep_sngpnt, y = suid_count)) +
+    geom_point() +
+    labs(x = "Single-Parent Households (%)", y = "SUID cases") +
+    theme_bw()
+```
+
+```{r}
+suid_train |> 
+    ggplot(aes(x = ep_minrty, y = suid_count)) +
+    geom_point() +
+    labs(x = "Minority Persons (%)", y = "SUID cases") +
+    theme_bw()
+```
+
+```{r}
+suid_train |> 
+    ggplot(aes(x = ep_noveh, y = suid_count)) +
+    geom_point() +
+    labs(x = "Households Without a Vehicle (%)", y = "SUID cases") +
+    theme_bw() 
+```
+
+```{r}
+suid_negbinomial_full <- 
+    brm(
+        suid_count ~ ep_unemp + ep_minrty + ep_sngpnt + ep_noveh, 
+        data = suid_train,
+        family = negbinomial()
+    )
+    
+
+suid_negbinomial_intercept <- 
+    brm(
+        suid_count ~ 1, 
+        data = suid_train,
+        family = negbinomial()
+    )
+
+suid_gaussian_full <- 
+    brm(
+        suid_count ~ ep_unemp + ep_minrty + ep_sngpnt + ep_noveh, 
+        data = suid_train,
+        family = gaussian()
+    )
+
+tar_load(logistic_full_model)
+tar_load(logistic_intercept_model)
+
+logistic_3_var <-
+    glm(
+            suid_present ~ ep_unemp + ep_minrty + ep_sngpnt,
+            data = suid_training_data,
+            family = binomial(link = "logit") 
+        )
+```
+
+```{r}
+compare_performance(logistic_3_var, logistic_full_model, logistic_intercept_model, metrics = "common")
+```
+
+```{r}
+performance_accuracy(logistic_3_var)
+```
+
+
+```{r}
+performance_accuracy(logistic_full_model)
+```
+
+```{r}
+mcmc_trace(suid_negbinomial_full)
+```
+
+```{r}
+mcmc_dens_overlay(suid_negbinomial_full)
+```
+
+```{r}
+mcmc_acf(suid_negbinomial_full)
+```
+
+```{r}
+pp_check(suid_negbinomial_full, ndraws = 50) +
+    scale_y_sqrt() +
+    coord_cartesian(xlim = c(0, 8))
+```
+
+```{r}
+parameters::parameters(suid_negbinomial_full, exponentiate = TRUE)
+```
+
+```{r}
+insight::get_predicted(suid_negbinomial_full)
+```
+
+
+```{r}
+performance(the_model)
+
+parameters::select_parameters(the_model)
+
+compare_performance(suid_negbinomial_full, suid_negbinomial_1_summary)
+
+source("R/plot_rootogram.R")
+
+plot_rootogram(suid_gaussian_full)
+
+suid_prediction |> 
+    correlation::cor_test("suid_count", "ep_unemp") |> 
     plot()
-```
 
-Next we next selected for variables that had some degree of correlation with `suid_count`, but had no more than weak correlation (< 0.5) with `publicinsurance`:
+summary(four_params)
+
+performance(four_params)
+
+parameters(four_params, exponentiate = TRUE)
+
+pp_check(suid_negbinomial_intercept)
+
+compare_performance(suid_gaussian_full, suid_negbinomial_intercept, suid_negbinomial_full)
+```
 
 ```{r}
-suid_correlations |>
-    filter(abs(suid_count) > 0.20) |>
-    filter(abs(public_insurance) < 0.5) |> 
-    select(term, suid_count, public_insurance)
-```
+suid_train <-
+    suid_train |> 
+    mutate(
+        .prediction = posterior_predict(suid_negbinomial_full),
+        .dev_residual = 
+            case_when(
+                suid_count == 0 ~ suid_count - .prediction,
+                TRUE ~ suid_count*log(suid_count/.prediction) - (suid_count - .prediction)
+            )
+    )
 
-This just left `count_opioid_death`, the count of opioid-related deaths in each census tract.
+suid_prediction |> 
+    ggplot(aes(x = .dev_residual)) +
+    geom_histogram() 
+```
 
 ```{r}
-as_tibble(suid) |> 
-    correlation::cor_test("suid_count", "count_opioid_death") |> 
-    plot()
+library(tmap)
+
+tmap_mode("view")
+
+tm_shape(suid_prediction) + tm_polygons(col = ".dev_residual", alpha = 0.5)
 ```
 
-There was a large outlier of many opioid deaths in a tract with no SUID deaths, but otherwise, there seemed to be a strong positive trend.
 
 To fill out our candidates, we selected the next four variables that correlated most with `suid_count`, without being redundant (e.g. not selecting `black` when `white` was already in the list):
 

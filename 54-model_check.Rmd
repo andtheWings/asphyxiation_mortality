@@ -1,4 +1,97 @@
-### Check of Model Assumptions
+## Model Checks
+
+<!-- **Binary Response:** -->
+<!-- The presence or absence of SUID is adequately defined and was verified through review by representatives from the SUID Case Registry for Cook County, IL. -->
+
+<!-- **Independence of Observations:**  -->
+<!-- Along with bias pertaining to the sourcing of data as described in the section on fairness of the model, another potentially major source of systematic error in our model pertains to autocorrelation.  -->
+<!-- A Durbin-Watson test for autocorrelated residuals (Supplement ###) rejected the null hypothesis, suggesting that observations are not independent of each other. -->
+<!-- This is at least partially due to the interconnected nature of census tracts in physical space. -->
+<!-- Indeed, a Moran I test also rejected the null hypothesis, suggesting that the autocorrelation is specifically spatial in nature. -->
+<!-- We sought to to address this issue by trying an alternative modeling approach (unsuccessful, described below). -->
+
+<!-- **Absence of Collinearity:** -->
+<!-- Variance inflation factors did not show evidence of collinearity between predictor variables (Supplement ###). -->
+
+<!-- **Absence of Extreme Outliers:** -->
+<!-- Cook's distance did not show evidence of extreme outliers (Supplement ###). -->
+
+
+
+```{r}
+library(targets)
+library(performance)
+tar_load(logistic_full_model)
+```
+
+
+### Logistic Regression Model
+
+A Durbin-Watson test for autocorrelated residuals rejected the null hypothesis, suggesting that observations are not independent of each other.
+
+```{r}
+check_autocorrelation(logistic_full_model)
+```
+
+This may have been because of the spatial nature of the data.
+Indeed, a Moran I test also rejected the null, suggesting that the data was spatially autocorrelated.
+
+```{r}
+spdep::moran.mc(
+    suid_training_data$suid_count,
+    spdep::nb2listw(
+        spdep::poly2nb(suid_training_data)
+    ),
+    nsim = 1000
+)
+```
+
+A check for multicollinearity did not show evidence for its presence.
+
+```{r}
+check_collinearity(logistic_full_model)
+```
+
+A check for outliers using Cook's distance did not show evidence for any present.
+
+```{r}
+check_outliers(logistic_full_model)
+```
+
+Visual checks for linearity between predictor variables and the logit-odds of the outcomes indicates this assumption is robust for the minority predictor variable, but not necessarily with the umemployed variable.
+
+```{r}
+suid_training_data |> 
+    mutate(.logit_prediction = predict(logistic_full_model, type = "link")) |> 
+    ggplot(aes(x = ep_unemp, y = .logit_prediction)) +
+    geom_point()
+```
+
+```{r}
+suid_training_data |> 
+    mutate(.logit_prediction = predict(logistic_full_model, type = "link")) |> 
+    ggplot(aes(x = ep_minrty, y = .logit_prediction)) +
+    geom_point()
+```
+
+Sample size was deemed to be adequate by using the rule of thumb that there should be a minimum of 10 cases with the least frequent outcome for each explanatory variable:
+
+$$(n = 1315) > (10 * 2 \space predictors / (237 \space cases \space of \space SUID / 1315 \space total \space cases) = 111 \space minimum \space sample \space size) $$
+
+### Negative Binomial Regression Model
+
+We fit a negative binomial model (estimated using ML) to predict 5-year counts of SUID cases in each census tract of Cook County. 
+We trained the model on the outcome from 2015-2019 using predictor variables from the 2014 vintage of the CDC's Social Vulnerability Index (@SocialVulnerabilityIndex).
+
+Our model performed significantly better than  to those for a simple linear model using the same predictor variables and a negative binomial model using just an intercept term (@tab-negbinomial-performance).
+Our model performed significantly better than the other two models on both measures of information criteria, had comparable root-mean-squared error, and was able to explain at least 10% more variability in the data.
+
+```{r}
+#| label: tab-negbinomial-performance
+#| tab-cap: Negative Binomial Model Performance Indices
+
+targets::tar_read(tbl_negbinomial_performance) |> gt::gt()
+```
 
 ```{r}
 targets::tar_read(nb_model_suid_count_per_tract) |> 

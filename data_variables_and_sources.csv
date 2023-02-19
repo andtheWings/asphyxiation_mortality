@@ -1,0 +1,23 @@
+Purpose,Variable Label,Variable Name,Source,Vintage
+Census Tract ID,FIPS Code,fips,,
+Observed Outcome,SUID Case Count,suid_count,CCMEO,2015-2019
+Observed Outcome,SUID Presence,suid_present,CCMEO,2015-2019
+Contemporaneous Comparison,Median Age,e_median_age,ACS-5,2019
+Contemporaneous Comparison,Sex Ratio,e_sex_ratio,ACS-5,2019
+Contemporaneous Comparison,"Non-Hispanic White, Alone",ep_non_hisp_white_alone,ACS-5,2019
+Contemporaneous Comparison,"Non-Hispanic Black, Alone",ep_non_hisp_black_alone,ACS-5,2019
+Contemporaneous Comparison,"Asian, Any",ep_asian_any,ACS-5,2019
+Contemporaneous Comparison,"American Indian and Alaska Native, Any",ep_aian_any,ACS-5,2019
+Contemporaneous Comparison,"Hispanic, Any",ep_hispanic_any,ACS-5,2019
+Contemporaneous Comparison,Overall SVI,rpl_themes,SVI,2019
+Contemporaneous Comparison,Socioeconomic SVI,rpl_theme1,SVI,2019
+Contemporaneous Comparison,Household Composition SVI,rpl_theme2,SVI,2019
+Contemporaneous Comparison,Minority Status/Language SVI,rpl_theme3,SVI,2019
+Contemporaneous Comparison,Housing Type/Transportation SVI,rpl_theme4,SVI,2019
+Contemporaneous Comparison,Currently Smoking,ep_smoking,PLACES,2018
+Contemporaneous Comparison,Binge Drinking,ep_binge,PLACES,2018
+Model Training,Percentage Minority Residents,ep_minrty,SVI,2014
+Model Training,Percentage Unemployed,ep_unemp,SVI,2014
+Model Prediction,Percentage Minority Residents,ep_minrty,SVI,2020
+Model Prediction,Percentage Unemployed,ep_unemp,SVI,2020
+Mapping,Census Tract GIS Polygons,geometry,TIGER,2019; 2020

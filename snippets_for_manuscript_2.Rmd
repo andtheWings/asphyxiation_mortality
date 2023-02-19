@@ -16,14 +16,7 @@ Here, we incorporate autoregression techniques such that the risk in one tract c
 
 Demonstrating the cumulative value of all the solutions outlined above, this paper will map how estimations of risk change after each challenge is addressed.
 
-### Lit Review
 
-Possible commonalities: 
-- Spatial modeling of SUID
-- Any Bayesian methodologies with infant death
-- Using Beta dist for modeling risk in epidemiology
-
-@ranjanInfantMortalityDeath2022 aka "Infant mortality and death clustering at the district level in India: A Bayesian approach". Commonality in that they use Bayesian methodology, but they use a "Geoadditive Model" focused on modeling infant survival in a discrete time series. They are most focused on estimating effects from variables like spatial processes, previous infant death in family, maternal age. Their geographic unit was coarser at the district level of Indian states.
 
 ## Methods
 
@@ -70,3 +63,112 @@ Where:
 Because we did not have disaggregated counts of live-births for each census tract, we used the pop_under_five variable as a proxy for the number of live births.
 
 Please see the supplementary materials for a linked blog post with further details on our process.
+
+## Results
+
+### Bayesian Estimation of SUID Risk
+
+#### Using a Global Prior
+
+See @fig-global-prior-comparison and @tbl-global-prior-comparison for a comparison of the distribution of SUID risk in Cook County census tracts when calculated as approximate incidence values from $\frac{y_i}{n_i}$, simulated from the global prior of $\pi \sim Beta(1, 1135)$, or estimated from posterior distributions using $\frac{\alpha_0 + y_i}{\alpha_0 + \beta_0 + n_i}$.
+
+```{r}
+#| label: fig-global-prior-comparison
+#| fig-cap: Distributions of SUID Risk in Census Tracts of Cook County, IL, 2015-2019
+#| echo: false
+#targets::tar_read(figure_global_prior_comparison)
+```
+
+
+```{r}
+#| label: tbl-global-prior-comparison
+#| tbl-cap: Summaries of SUID Risk in Census Tracts of Cook County, IL, 2015-2019
+#| echo: false
+#targets::tar_read(table_global_prior_comparison)
+```
+
+```{r}
+# library(tidyverse)
+# library(targets)
+# library(sf)
+# suid_tibble <- as_tibble(tar_read(suid))
+# 
+# examples <-
+#     bind_rows(
+#         slice_min(suid_tibble, global_posterior_risk, n = 1),
+#         slice_max(suid_tibble, global_posterior_risk, n = 1),
+#         slice_sample(
+#             filter(suid_tibble, suid_count > 0),
+#             n = 1
+#         )
+#     ) |> 
+#     select(fips, suid_count, pop_under_five_adj, approx_suid_incidence)
+#    
+# examples
+```
+```{r}
+# library(tidyverse)
+# 
+# plot_beta_binom_variation <- function(shape1_num, shape2_num, y_num, n_num) {
+#     
+#     like_scaled <- function(x) {
+#         like_fun <- function(x) {
+#             dbinom(x = y_num, size = n_num, prob = x)
+#          }
+#         scale_c <- integrate(like_fun, lower = 0, upper = 1)[[1]]
+#         like_fun(x)/scale_c
+#     }
+# 
+#     prior_fun <- function(x) {
+#         dbeta(x, shape1 = shape1_num, shape2 = shape2_num)
+#     }
+# 
+#     posterior_fun <- function(x) {
+#         dbeta(x, shape1 = shape1_num + y_num, shape2 = shape2_num + n_num - y_num)
+#     }
+#     
+#     ggplot(tibble(x = c(0, 1)), aes(x)) +
+#     stat_function(fun = prior_fun, aes(color = "Prior"), alpha = 0.75) +
+#     stat_function(fun = like_scaled, aes(color = "Scaled Likelihood"), alpha = 0.75) +
+#     stat_function(fun = posterior_fun, aes(color = "Posterior"), alpha = 0.75) +
+#     labs(
+#         x = "SUID Risk (cases per 100,000 live-births)",
+#         y = "Density"
+#     ) +
+#     scale_y_sqrt() +
+#     scale_x_sqrt(labels = scales::label_comma(scale = 1E5)) +
+#     coord_cartesian(xlim = c(0, 0.2)) +
+#     scale_color_manual(
+#         "",
+#         values = c(
+#             Prior = "red",
+#             `Scaled Likelihood` = "blue",
+#             Posterior = "purple"
+#         ),
+#         breaks = c(
+#             "Prior",
+#             "Scaled Likelihood",
+#             "Posterior"
+#         )
+#     ) +
+#     theme_light() +
+#     labs(
+#         title = 
+#              paste0(
+#                  "alpha = ", as.character(shape1_num), 
+#                  ", beta = ", as.character(shape2_num), 
+#                  ", y = ", as.character(y_num), 
+#                  ", n = ", as.character(n_num)
+#                  
+#             )
+#     )
+# }
+# 
+# plot_beta_binom_variation(1, 1135, 5, 122)
+# 
+# map2(
+#     .x = examples$suid_count,
+#     .y = examples$pop_under_five_adj,
+#     .f = ~plot_beta_binom_variation(1, 1135, .x, .y)
+# )
+```

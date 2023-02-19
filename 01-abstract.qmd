@@ -12,10 +12,9 @@ We used social vulnerability indicators from 2014 to train a prediction model fo
 We fed indicators from 2020 into our model to make predictions for 2021-2025 and mapped the results.
 
 RESULTS: 
-Tracts affected by SUID exhibited higher proportions of Black residents (68% vs 4%) and lower proportions of White residents (4% vs. 46%).
-Affected tracts also had higher socioeconomic vulnerability scores (median of 86th national percentile vs 50th national percentile).
-Our model showed moderate accuracy on training data (AUC 76.6%).
-A map of tracts in Suburban Cook County both historically affected by SUID (2015-2019) and predicted by our model to be affected in the future (2021-2025) showed clusters in the South and West regions.
+Tracts affected by SUID exhibited higher proportions of Black residents at 68% (IQR 11-92) vs. 4% (IQR 2-29) and lower proportions of White residents at 4% (IQR 1-23) vs. 46% (IQR 13-71).
+Our model showed moderate accuracy on training data (AUC 76.6%, sensitivity 73%, specificity 71%).
+A map of tracts in Suburban Cook County both historically affected by SUID (2015-2019) and predicted by our model to be affected in the future (2021-2025) showed clusters in the South and West regions of the county.
 
 CONCLUSIONS: 
 Sharp racial and socioeconomic disparities in SUID incidence persisted within Cook County from 2015-2019.
