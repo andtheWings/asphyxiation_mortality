@@ -3,8 +3,8 @@ wrangle_acs_s0101 <- function(acs_s0101_raw_df) {
     acs_s0101_raw_df |> 
         select(
             fips = GEO_ID,
-            ec_under_5 = S0101_C01_002E,
-            mc_under_5 = S0101_C01_002M,
+            e_under_5 = S0101_C01_002E,
+            m_under_5 = S0101_C01_002M,
             ep_under_5 = S0101_C02_002E,
             mp_under_5 = S0101_C02_002M,
             e_median_age = S0101_C01_032E,

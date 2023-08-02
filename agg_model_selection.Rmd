@@ -1,0 +1,257 @@
+---
+title: "Supplement 1: Model Selection and Evaluation"
+author: Daniel P. Hall Riggins
+date: today
+format: 
+    html:
+        self-contained: true
+---
+
+This supplement lays out how we selected our model for predicting the number of SUID cases per "community" (variable `suid_count_2015_2019`) from variables in the CDC's [Social Vulnerability Index (SVI) dataset](https://www.atsdr.cdc.gov/placeandhealth/svi/). Component variables used in the index are divided into four overarching themes: "Socioeconomic", "Household Composition/Disability", "Minority Status/Language", "Housing Type/Transportation".
+
+Start by loading R libraries and the dataset:
+
+```{r}
+library(dplyr)
+library(sf)
+library(performance)
+
+suid <- arrow::read_parquet("data/suid_export.parquet")
+```
+
+
+## Choosing Model Type
+
+We explored the general family of models that expect an outcome to be distributed as a [count](https://thomaselove.github.io/432-notes/modeling-a-count-outcome-in-ohio-smart.html). 
+These distribution types include Poisson, Negative Binomial, and their zero-inflated variants.
+
+### Overdispersion
+
+Poisson would have been the simplest model choice, but was unable to account for [overdispersion](https://stats.stackexchange.com/questions/554622/meaning-of-overdispersion-in-statistics), which was present in our data:
+
+```{r}
+glm(
+    formula = suid_count_2015_2019 ~ 1, 
+    family = poisson(), 
+    data = suid
+) |> 
+    check_overdispersion()
+```
+
+Using a negative binomial model resolved the issue with overdispersion:
+
+```{r}
+MASS::glm.nb(
+    suid_count_2015_2019 ~ 1,
+    data = suid
+) |> 
+    check_overdispersion()
+```
+
+### Zero-inflation
+
+If a negative binomial model is zero-inflated, one can use a variant of the model to correct for that, but this was not an issue in our context:
+
+```{r}
+MASS::glm.nb(
+    suid_count_2015_2019 ~ 1,
+    data = suid
+) |> 
+    check_zeroinflation()
+```
+
+Therefore we settled on a negative binomial model type as our final choice.
+
+## Identifying Predictor Candidates
+
+### Population Adjustment
+
+Before selecting other predictor variables, was helpful to know if including population estimate as an exposure offset in the model added value.
+
+```{r}
+totpop <- 
+    MASS::glm.nb(
+        suid_count_2015_2019 ~ e_totpop_2014,
+        data = suid
+    )
+
+parameters::parameters(totpop, exponentiate = TRUE, digits = 6) |> 
+    print_html()
+```
+
+In our case, the population offset did have a statistically significant contribution to the model.
+
+### Other Predictors
+
+We generated a dataframe containing correlation coefficients for each SVI variable to `suid_count_2015_2019`:
+
+```{r}
+suid_correlations <-
+    suid |>
+    as_tibble() |> 
+    select(
+        suid_count_2015_2019,
+        ends_with("_2014"),
+        -starts_with("log_e")
+    ) |>
+    corrr::correlate() |> 
+    arrange(desc(abs(suid_count_2015_2019))) 
+
+suid_correlations |> 
+    select(term, suid_count_2015_2019)
+```
+
+So for example, the correlation between percentage unemployed and SUID count was 0.33. 
+
+Sidenote: the SVI dataset prefixes its variables with abbreviations to denote different types. A prefix of "e_" denotes that variable represents a raw estimate as opposed to a percentile ("ep_") or a margin of error ("m_").
+
+Our approach to choosing predictors was to screen performance of models in a step-wise additive fashion.
+We paid close attention to metrics that penalize for overfitting due to inclusion of too many predictor variables--aka Akaike/Bayesian Information Criteria (AIC; BIC).
+
+To shrink the number of models to screen, we started with the variable from each SVI theme that was most correlated to SUID count. So to start out, we screened the following variables:
+
+**Theme 1 - Socioeconomic:** `e_pov_2014` - Estimate of people living below the poverty line, 2010-2014 American Community Survey (ACS)
+
+**Theme 2 - Household Composition/Disability:** `e_sngpnt_2014` - Estimate of single-parent households with children under 18, 2010-2014 ACS
+
+**Theme 3 - Minority Status/Language:** `e_minrty_2014` - Estimate of minority people (all persons except white, non-Hispanic), 2010-2014 ACS
+
+**Theme 4 - Housing Type/Transportation:** `e_crowd_2014` - Estimate of households with more occupants than rooms (crowded), 2010-2014 ACS
+
+Here, we fit a model using each of these variables added to total population, then compared performance:
+
+```{r}
+totpop_pov <-
+    MASS::glm.nb(
+        suid_count_2015_2019 ~ e_pov_2014 + e_totpop_2014, 
+        data = suid
+    )
+
+totpop_sngpnt <-
+    MASS::glm.nb(
+        suid_count_2015_2019 ~ e_sngpnt_2014 + e_totpop_2014, 
+        data = suid
+    )
+
+totpop_minrty <-
+    MASS::glm.nb(
+        suid_count_2015_2019 ~ e_minrty_2014 + e_totpop_2014, 
+        data = suid
+    )
+
+totpop_crowd <-
+    MASS::glm.nb(
+        suid_count_2015_2019 ~ e_crowd_2014 + e_totpop_2014, 
+        data = suid
+    )
+
+compare_performance(
+    totpop_pov, totpop_sngpnt, totpop_minrty, totpop_crowd,
+    metrics = "common",
+    rank = TRUE
+) |> 
+    print_html()
+```
+
+The model adding the poverty metric performed best.
+
+In an attempt to find information less co-linear to poverty, we looked for variables in each theme that were most correlated to SUID count that also had "low" correlation to poverty.
+
+```{r}
+suid_correlations |> 
+    filter(abs(e_pov_2014) < 0.25) |> 
+    relocate(e_pov_2014, .after = suid_count_2015_2019) |> 
+    select(term, suid_count_2015_2019, e_pov_2014)
+```
+
+This resulted in only one hit: `e_mobile_2014_2014` - Estimate of the number of mobile homes, 2010-2014 ACS. Due to low correlation with SUID too, this was unlikely to be very useful, but we added it to our additively screened variables just in case.
+
+Here we trialed adding each of the remaining prospective variables to the model with total population and poverty, then compared performance:
+
+```{r}
+totpop_pov_sngpnt <-
+    MASS::glm.nb(
+        suid_count_2015_2019 ~ e_sngpnt_2014 + e_totpop_2014 + e_pov_2014, 
+        data = suid
+    )
+
+totpop_pov_minrty <-
+    MASS::glm.nb(
+        suid_count_2015_2019 ~ e_minrty_2014 + e_totpop_2014 + e_pov_2014, 
+        data = suid
+    )
+
+totpop_pov_crowd <-
+    MASS::glm.nb(
+        suid_count_2015_2019 ~ e_crowd_2014 + e_totpop_2014 + e_pov_2014, 
+        data = suid
+    )
+
+totpop_pov_mobile  <-
+    MASS::glm.nb(
+        suid_count_2015_2019 ~ e_mobile_2014 + e_totpop_2014 + e_pov_2014, 
+        data = suid
+    )
+
+compare_performance(
+    totpop_pov, totpop_pov_sngpnt, totpop_pov_minrty, totpop_pov_crowd, totpop_pov_mobile,
+    metrics = "common",
+    rank = TRUE
+) |> 
+    print_html()
+```
+
+The model adding crowded households performed best.
+
+Here we trialed adding each of the remaining prospective variables to the model with total population, poverty, and crowded households, then compared performance:
+
+```{r}
+
+totpop_pov_crowd_sngpnt <-
+    MASS::glm.nb(
+        suid_count_2015_2019 ~ e_sngpnt_2014 + e_crowd_2014 + e_totpop_2014 + e_pov_2014, 
+        data = suid
+    )
+
+totpop_pov_crowd_minrty <-
+    MASS::glm.nb(
+        suid_count_2015_2019 ~ e_minrty_2014 + e_crowd_2014 + e_totpop_2014 + e_pov_2014, 
+        data = suid
+    )
+
+totpop_pov_crowd_mobile <-
+    MASS::glm.nb(
+        suid_count_2015_2019 ~ e_mobile_2014 + e_crowd_2014 + e_totpop_2014 + e_pov_2014, 
+        data = suid
+    )
+
+
+compare_performance(
+    totpop_pov_crowd, totpop_pov_crowd_sngpnt, totpop_pov_crowd_minrty, totpop_pov_crowd_mobile,
+    metrics = "common",
+    rank = TRUE
+) |> 
+    print_html()
+```
+
+Here we reached the point where there was not enough performance boost to overcome risk of overfitting when adding any of the remaining variables.
+
+Here we compared all step-wise iterations of the viable model to each other:
+
+```{r}
+compare_performance(
+    totpop_pov_crowd, totpop_pov, totpop,
+    metrics = "common"
+) |> 
+    print_html()
+```
+
+The model with all 3 variables had the best AIC, BIC, and Nagelkerke's R^2 metrics, but suffered relative to the others on RMSE. In balance, it still seemed like the 3-variable model was the best choice.
+
+## Conclusion
+
+To recap, our final model used a negative binomial generalized linear model, did not adjust for zero-inflation, did include an adjustment for overall population, and included the following additional predictors:
+
+**Theme 1 - Socioeconomic:** `e_pov_2014` - Estimate of people living below the poverty line, 2010-2014 ACS
+
+**Theme 4 - Housing Type/Transportation:** `e_crowd_2014` - Estimate of households with more occupants than rooms, 2010-2014 ACS

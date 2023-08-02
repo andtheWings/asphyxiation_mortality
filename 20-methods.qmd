@@ -1,82 +1,92 @@
 ## Methods
 
-### Study Design, Setting, Variables, and Sources
+### Study Design 
 
-We conducted a cross-sectional retrospective study concerning cases of SUID in census tracts of Cook County, IL.
+We conducted a cross-sectional retrospective study concerning cases of SUID in census tracts/"communities" of Cook County, IL.
 
-The vintage of a variable was context-specific.
-The overall chronological scheme was to observe the SUID outcome from 2015-2019, compare descriptive variables from 2019 in census tracts with and without SUID observed, use older variables from 2014 for model training, and use newer variables from 2020 for model predictions of the future period of 2021-2025 (@tbl-variables).
+We used the concept of "communities" in order to:
 
-For the outcome, *Description from collaborator of how CCME data was obtained and of the query for teasing out SUID cases* [@MedicalExaminerCasea]. 
-Validity of SUID case identifications was assessed by team members from the Sudden Unexpected Infant Death Case Registry for Cook County \[CITATION\]. 
-*Description from collaborator of the geocoding process.* 
-After geocoding, counts of SUID cases were aggregated by count to the census tract level. 
+- Increase the geographic catchment area for case counts (incidence in census tracts was too low to make meaningful case count predictions)
+- Lend semantic meaning to the geographic unit of analysis (being able to name each unit rather than using a numeric identifier)
 
-There were 1315 census tracts with non-zero populations included in our analysis from 2014-2019.
-In 2020, tracts were slightly redrawn for the decennial census, so we made forward predictions on the new set of 1,331 census tracts with non-zero populations.
+Within Chicago city limits, communities were spatial joins of census tracts based on the "suburb" tag (or "neighborhood" if "suburb" was not listed) provided by the OpenCage geocoding service.
 
-We sourced all other tract-level variables from U.S. Census' "American Community Survey" (ACS-5) and from CDC data products "PLACES: Local Data for Better Health" and the "Social Vulnerability Index" (SVI) [@AmericanCommunitySurvey; @PLACESLocalData; @SocialVulnerabilityIndex].
+Outside Chicago city limits, communities were spatial joins of census tracts based on the highest designation available for the "city", then "town", then "suburb", then "village" tags.
+
+Although aggregating to "communities" lended the benefits listed above, it came at the cost of less precision for covariates, which were aggregated by taking simple sums of their estimates at the census tract level without taking into account variations in their margins of error.
+
+### Primary Outcome
+
+The primary outcome of interest was SUID case count in each community.
+We translated The National Institute of Child Health and Human Development's definition of SUID [@CommonSIDSSUID] into a SQL query of the Cook County Medical Examiner Office's Archive [@fig-sql].
+Each case identified by the query was validated by team members from the SUID Case Registry for Cook County.
+Each validated case was geocoded confidentially using ArcGIS Pro geocoding tools behind the network firewall [@ArcGISPro].
+Geocoded cases were spatially joined by intersection with census tracts and aggregated to case counts.
+These anonymized case counts at the census tract level, were further aggregated to the community level as described above.
+
+![SQL Query for Identifying Prospective Cases of SUID from the Cook County Medical Examiner's Case Archive](_media/fig_sql.png){#fig-sql}
+
+The "WHERE CASENUMBER IN" clause is censored, but contained a list of additional case numbers recommended for inclusion by the team members from the SUID Case Registry for Cook County.
+
+<!-- SELECT * -->
+<!-- INTO #PC_File -->
+<!-- FROM [MedExaminer].[dbo].[ME_case] -->
+<!-- WHERE (datediff(day,decedent_dob, death_Date) / 365.25) <= 1 -->
+<!-- AND year(death_date) IN (2015, 2016, 2017, 2018, 2019) -->
+<!-- AND -->
+<!-- ( -->
+<!-- PRIMARYCAUSE LIKE '%asphyxia%' -->
+<!-- OR PRIMARYCAUSE LIKE '%Ashyxia%' -->
+<!-- OR PRIMARYCAUSE LIKE '%Suffoc%' -->
+<!-- OR -->
+<!-- ( -->
+<!-- (PRIMARYCAUSE LIKE '%UNDETERMINED%' OR PRIMARYCAUSE LIKE '%undertemined%') -->
+<!-- AND (manner LIKE '%UNDETERMINED%' OR manner LIKE '%undertemined%') -->
+<!-- ) -->
+<!-- ) -->
+<!-- UNION -->
+<!-- SELECT * FROM MedExaminer.dbo.ME_case -->
+<!-- WHERE CASENUMBER IN -->
+<!-- ('<CENSORED>') -->
 
 
+### Temporal Setting
 
-| Purpose                    | Variable Label                         | Variable Name           | Source | Vintage    |
-|----------------------------|----------------------------------------|-------------------------|--------|------------|
-| Census Tract ID            | FIPS Code                              | fips                    |        |            |
-| Observed Outcome           | SUID Case Count                        | suid_count              | CCMEO  | 2015-2019  |
-| Observed Outcome           | SUID Presence                          | suid_present            | CCMEO  | 2015-2019  |
-| Contemporaneous Comparison | Median Age                             | e_median_age            | ACS-5  | 2019       |
-| Contemporaneous Comparison | Sex Ratio                              | e_sex_ratio             | ACS-5  | 2019       |
-| Contemporaneous Comparison | Non-Hispanic White, Alone              | ep_non_hisp_white_alone | ACS-5  | 2019       |
-| Contemporaneous Comparison | Non-Hispanic Black, Alone              | ep_non_hisp_black_alone | ACS-5  | 2019       |
-| Contemporaneous Comparison | Asian, Any                             | ep_asian_any            | ACS-5  | 2019       |
-| Contemporaneous Comparison | American Indian and Alaska Native, Any | ep_aian_any             | ACS-5  | 2019       |
-| Contemporaneous Comparison | Hispanic, Any                          | ep_hispanic_any         | ACS-5  | 2019       |
-| Contemporaneous Comparison | Overall SVI                            | rpl_themes              | SVI    | 2019       |
-| Contemporaneous Comparison | Socioeconomic SVI                      | rpl_theme1              | SVI    | 2019       |
-| Contemporaneous Comparison | Household Composition SVI              | rpl_theme2              | SVI    | 2019       |
-| Contemporaneous Comparison | Minority Status/Language SVI           | rpl_theme3              | SVI    | 2019       |
-| Contemporaneous Comparison | Housing Type/Transportation SVI        | rpl_theme4              | SVI    | 2019       |
-| Contemporaneous Comparison | Currently Smoking                      | ep_smoking              | PLACES | 2018       |
-| Contemporaneous Comparison | Binge Drinking                         | ep_binge                | PLACES | 2018       |
-| Model Training             | Percentage Minority Residents          | ep_minrty               | SVI    | 2014       |
-| Model Training             | Percentage Unemployed                  | ep_unemp                | SVI    | 2014       |
-| Model Prediction           | Percentage Minority Residents          | ep_minrty               | SVI    | 2020       |
-| Model Prediction           | Percentage Unemployed                  | ep_unemp                | SVI    | 2020       |
-| Mapping                    | Census Tract GIS Polygons              | geometry                | TIGER  | 2019; 2020 |
+The year of origin for each data variable was context-specific.
+SUID Case Counts were observed from 2015-2019.
+A descriptive comparison of census tracts with and without SUID present was performed on variables from contemporaneous years.
+We retrospectively trained a model predicting SUID Case Counts from 2015-2019 using predictor covariates from 2014.
+Using the trained model, we made prospective predictions for SUID Case Counts from 2021-2025 with covariates from 2020.
 
-: Variables and Sources {#tbl-variables}
+### Data Sources for Model Predictor Variables
 
-### Pipeline
+We sourced all covariates from U.S. Census' "American Community Survey" (ACS) and from the Center for Disease Control's associated "Social Vulnerability Index" (SVI) [@AmericanCommunitySurvey; @SocialVulnerabilityIndex].
 
-We performed all steps in the data pipeline downstream from the SQL query in the R computing environment [@ProgrammingLanguage] while relying heavily on the {tidyverse} suite of packages [@TidyversePackageSuite]. 
-Data cleaning additionally utilized convenience functions from the {janitor} and {RSocrata} packages [@samfirkeJanitorPackage; @hughdevlinRSocrataPackage]. 
+### Coding Pipeline
+
+We performed all steps in the data pipeline downstream from the SQL query in the R computing environment [@ProgrammingLanguage] using the {tidyverse} suite of packages [@TidyversePackageSuite]. 
+We utilized additional data cleaning convenience functions from the {janitor} and {RSocrata} packages [@samfirkeJanitorPackage; @hughdevlinRSocrataPackage]. 
 The pipeline was orchestrated by specification using the {targets} package [@williammichaellandauTargetsPackage].
 
-We constructed data tables using the {gt} package and its companion {gtsummary} [@richardiannoneGtPackage; @danield.sjobergGtsummaryPackage].
+We generated data tables for publication using the {gt} package and its companion {gtsummary} [@richardiannoneGtPackage; @danield.sjobergGtsummaryPackage].
 
-We performed geospatial manipulation and mapping with the {sf}, {leaflet}, {opencage}, and {tigris} packages [@edzerpebesmaSfPackage; @LeafletPackage; @danielpossenriedeOpencagePackage; @kylewalkerTigrisPackage] along with their back-end infrastructure [@CARTOBasemapStyles; @frankwarmerdamGDAL; @GEOS; @volodymyragafonkinLeaflet; @OpenCageGeocodingAPI; @OpenStreetMap; @PROJ; @TIGERDataProducts]. 
+We performed geospatial manipulation and mapping with the {sf}, {leaflet}, {tmap}, {opencage}, and {tigris} packages [@edzerpebesmaSfPackage; @LeafletPackage; @tennekesTmapThematicMaps; @danielpossenriedeOpencagePackage; @kylewalkerTigrisPackage] along with their back-end infrastructure [@CARTOBasemapStyles; @frankwarmerdamGDAL; @GEOS; @volodymyragafonkinLeaflet; @OpenCageGeocodingAPI; @OpenStreetMap; @PROJ; @TIGERDataProducts]. 
 
-### Descriptive Comparison
+### Statistical Analysis
 
-We performed descriptive analysis for comparing tracts with and without SUID by comparing median values (with IQR’s). 
-This is because most of the distributions were not normal.
+#### Descriptive Comparison
 
-### Model
+We compared communities with and without observed cases of SUID using median values (and interquartile ranges) of demographic variables. 
+Median values were reported because most of the variables did not approximate normal distributions.
 
-We modeled SUID case counts in each census tract using maximum likelihood estimation in the {MASS} package [@brianripleyMASSPackage]. We used the negative binomial family of generalized linear models instead of the Poisson family because overdispersion was detected.
+#### Predictive Modeling
 
-We modeled presence of SUID in each census tract using logistic regression in base R (also by maximum likelihood estimation).
-
-The {easystats} suite of packages was used to assess each model on metrics like area under the receiver operator characteristic curve (AUC; ROC), sensitivity, specificity, Akaike/Bayesian information criteria (AIC; BIC), and R<sup>2</sup> [@danielludeckeEasystatsPackageSuite].
+We modeled SUID case counts in each census tract using maximum likelihood estimation via the {MASS} R package [@brianripleyMASSPackage]. 
+We used the negative binomial family of generalized linear models instead of the Poisson family because overdispersion was detected.
+Selection of model form and predictors along with evaluation of performance is described in detail in Supplement 1.
+Briefly, we calculated Pearson correlation coefficients between SUID count and every variable in the pool used to calculate SVI [@SocialVulnerabilityIndex], which has four thematic domains.
+One to two promising variables from each SVI thematic domain were assessed in an additive step-wise fashion with the performance parameters Akaike/Bayesian Information Criteria (AIC; BIC), root mean squared error (RMSE), and Nagelkerke's R<sup>2</sup> using the {EasyStats} suite of R packages [@danielludeckeEasystatsPackageSuite].
+All predictor variables were log-transformed in the final model in order to reduce the influence of extreme values.
 
 <!-- Data was divided into spatially-clustered folds using {spatialsample} package. 80% of the data was apportioned from the each of the folds to training the model and 20% to testing performance. -->
-
-We selected model prediction variables from the full pool of variables used to compute SVI [@SocialVulnerabilityIndex].
-We ultimately settled on using the estimated percentage of unemployed residents (ep_unemp) and the estimated percentage of minority residents (ep_minrty) due to a combination of high Pearson correlation coefficients with outcome and each belonging to different thematic domains of the SVI.
-We found that inclusion of more than two predictor variables decreased the overall performance of the model.
-The model was *not* structured to quantify causal effects of these predictors.
-
-### Missing Data
-
-There was no explicitly missing data from the analysis in the sense that each census tract had an estimate for the outcome value and its predictors. However, these estimates could have been influenced by biases in data collection leading to under- or over-counting.
 

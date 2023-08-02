@@ -1,22 +1,23 @@
 ## Abstract
 
 BACKGROUND: 
-Incidence of Sudden Unexpected Infant Death in the United States has persisted at roughly the same level since the mid-2000's despite intensive prevention efforts.
+Incidence of Sudden Unexpected Infant Death (SUID) in the United States has persisted at roughly the same level since the mid-2000's despite intensive prevention efforts.
 Disparities in outcomes across racial/socioeconomic lines also persist.
 These disparities are reflected in the spatial distribution of cases.
+We sought to characterize communities where SUID occurred in Cook County, IL from 2015-2019 and predict where it would occur in 2021-2025.
 
 METHODS: 
-We used geocoded medical examiner data from 2015-2019 to identify SUID cases in Cook County, IL and aggregated them to census tracts as the unit of analysis. 
-We compared demographics and socioeconomic factors in tracts affected by SUID versus those unaffected.
-We used social vulnerability indicators from 2014 to train a prediction model for the presence of SUID in each given tract from 2015-2019.
-We fed indicators from 2020 into our model to make predictions for 2021-2025 and mapped the results.
+This cross-sectional retrospective study used geocoded medical examiner data from 2015-2019 to identify SUID cases in Cook County, IL and aggregated them to census tracts then to "communities" as the unit of analysis. 
+We compared demographics and socioeconomic factors in communities affected by SUID versus those unaffected.
+We used social vulnerability indicators from 2014 to train a prediction model for SUID Case Counts in each given community from 2015-2019.
+We applied indicators from 2020 to the trained model to make predictions for 2021-2025.
 
 RESULTS: 
-Tracts affected by SUID exhibited higher proportions of Black residents at 68% (IQR 11-92) vs. 4% (IQR 2-29) and lower proportions of White residents at 4% (IQR 1-23) vs. 46% (IQR 13-71).
-Our model showed moderate accuracy on training data (AUC 76.6%, sensitivity 73%, specificity 71%).
-A map of tracts in Suburban Cook County both historically affected by SUID (2015-2019) and predicted by our model to be affected in the future (2021-2025) showed clusters in the South and West regions of the county.
+The analysis was based on 325 cases of SUID.
+Communities affected by SUID exhibited higher proportions of Black residents at 32% (IQR 6-79) vs. 3% (IQR 2-10) and lower proportions of White residents at 17% (IQR 4-49) vs. 60% (IQR 31-76).
+A map of communities in Cook County affected by SUID (2015-2019) showed clusters in the South and West regions of the county.
+Our model showed moderate accuracy on training data (Nagelkerke's R^2 of 70.2%).
 
 CONCLUSIONS: 
 Sharp racial and socioeconomic disparities in SUID incidence persisted within Cook County from 2015-2019.
-Our model and maps identified precise regions within the county's suburbs for our local health department to target for intervention.
-These communities should be closely engaged on how best to intervene within their specific contexts.
+Our model and maps identified precise regions within the county for the local health department to target for intervention.

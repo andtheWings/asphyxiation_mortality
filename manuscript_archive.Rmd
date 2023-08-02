@@ -66,6 +66,64 @@ Please see the supplementary materials for a linked blog post with further detai
 
 ## Results
 
+### Logistic Regression Results
+
+Given this limitation in modeling counts, we simplified to a logistic regression model of SUID presence also predicted from percent unemployed and percent minority residents. 
+We chose two predictor variables because AIC and BIC metrics indicated this number achieved the greatest accuracy, with a 1-predictor model comparatively underfitting and a 3-predictor model overfitting the data.
+%%%%%%
+Compared to an intercept-only logistic model, our model performed better on AIC/BIC and AUC. The two models had comparable root-mean-squared error (@tbl-logistic-performance). 
+@fig-roc visualizes the ROC curves for both models with a point annotated at our chosen classification threshold of 0.19. When predicted cases were set at this threshold, the model achieved sensitivity of 73% and specificity of 71% (@tbl-2-by-2).
+
+
+```{r}
+#| label: tbl-logistic-performance
+#| tbl-cap: Comparing Performance Metrics of SUID Logistic Models with Different Numbers of Predictor Variables
+
+targets::tar_read(table_logistic_performance)
+```
+The One-Predictor Model used unemployed percentage, to which the Two-Predictor Model added minority percentage, to which the Three-Predictor added single-parent percentage. AIC = Akaike Information Criterion, BIC = Bayesian Information Criterion, AUC = Area Under the Receiver Operating Characteristic Curve, and RMSE = Root Mean Square Error.
+
+
+```{r}
+#| label: fig-roc
+#| fig-cap: Comparing ROC Curves of SUID Logistic Models with Different Numbers of Predictor Variables
+targets::tar_read(plot_of_rocs) 
+```
+ROC = Receiver Operating Characteristic.
+
+```{r}
+#| label: tbl-2-by-2
+#| tbl-cap: Contingency Table for Two-Predictor SUID Logistic Model with Positive Threshold of 0.19
+targets::tar_read(table_2_by_2)
+```
+
+
+
+We generated forward predictions for the presence of SUID during the time period 2021-2025 using SVI predictor data from 2020 in the trained logistic model. 
+We further classified the prediction for each census tract by whether it was consistent with historical observation during 2015-2019 (@tbl-map-classifications).
+
+
+### Prediction Classification Scheme
+
++--------------------+-------------------------------------------+----------------------------------+
+| Predicted Outcome\ | Observed Outcome\                         | Classification                   |
+| (2021-2025)        | (2015-2019)                               |                                  |
++====================+===========================================+==================================+
+| SUID Present       | SUID Present                              | Persistently Present             |
++--------------------+-------------------------------------------+----------------------------------+
+| SUID Present       | Tract is new to the 2020 decennial census | Present (no previous comparison) |
++--------------------+-------------------------------------------+----------------------------------+
+| SUID Present       | SUID Absent                               | Newly Present                    |
++--------------------+-------------------------------------------+----------------------------------+
+| SUID Absent        | SUID Present                              | Newly Absent                     |
++--------------------+-------------------------------------------+----------------------------------+
+| SUID Absent        | Tract is new to the 2020 decennial census | Absent (no previous comparison)  |
++--------------------+-------------------------------------------+----------------------------------+
+| SUID Absent        | SUID Absent                               | Persistently Absent              |
++--------------------+-------------------------------------------+----------------------------------+
+
+: SUID Prediction Classification Scheme {#tbl-map-classifications}
+
 ### Bayesian Estimation of SUID Risk
 
 #### Using a Global Prior

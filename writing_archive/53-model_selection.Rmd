@@ -1,0 +1,607 @@
+## Supplement 1: Model Selection
+
+```{r}
+library(dplyr)
+library(sf)
+library(targets)
+library(performance)
+
+tar_load(suid_training_data)
+```
+
+This supplement lays out how we selected the model for predicting the number of SUID cases per census tract during 2015-2019 (variable `suid_count`) from variables in the 2014 vintage of the [Social Vulnerability Index (SVI) dataset](https://www.atsdr.cdc.gov/placeandhealth/svi/). The SVI composite metric can be broken down into 4 themes: "Socioeconomic" (Theme 1), "Household Composition/Disability" (Theme 2), "Minority Status/Language" (Theme 3), "Housing Type/Transportation" (Theme 4). 
+
+<!-- Our base model included the variable `pop_under_five` (population of all children under age 5 years per census tract), which served as a quasi-exposure variable to account for variation in the number of people susceptible to an SUID incident. -->
+
+### Choosing Model Type
+
+We explored the general family of models that expect an outcome to be distributed as a [count](https://thomaselove.github.io/432-notes/modeling-a-count-outcome-in-ohio-smart.html#a-tobit-censored-regression-model). 
+These distribution types include Poisson, Negative Binomial, and their zero-inflated variants.
+
+#### Overdispersion
+
+Poisson would have been the simplest model choice, but was unable to account for [overdispersion](https://stats.stackexchange.com/questions/554622/meaning-of-overdispersion-in-statistics), which was present in our data:
+
+```{r}
+glm(
+    formula = suid_count ~ 1, 
+    family = poisson(), 
+    data = comm_training_data
+) |> check_overdispersion()
+```
+
+Using a negative binomial model resolved the overdispersion:
+
+```{r}
+MASS::glm.nb(
+    suid_count ~ 1,
+    data = comm_training_data
+) |> check_overdispersion()
+```
+
+#### Zero-inflation
+
+If a negative binomial model is zero-inflated, one can use a variant of the model to correct for that, but this was not an issue in our context:
+
+```{r}
+MASS::glm.nb(
+    suid_count ~ 1,
+    data = comm_training_data
+) |> check_zeroinflation()
+```
+
+Therefore we settled on a negative binomial model type as our final choice.
+
+### Identifying Predictor Candidates
+
+#### Population Offset
+
+Before selecting other predictor variables, it's helpful to know if it is helpful to include population estimates as an exposure offset in the model. Unfortunately, adjusting for overall population did not contribute to predictions:
+
+```{r}
+totpop <- 
+    MASS::glm.nb(
+        suid_count ~ e_totpop,
+        data = comm_training_data
+    )
+
+parameters::parameters(totpop, exponentiate = TRUE, digits = 6)
+```
+
+It would be of more utility to adjust for the population of reproductive age women or the estimate of live births during the period of interest, but we did not have access to this data at the granular census tract level.
+
+#### Other Predictors
+
+We generated a dataframe containing correlation coefficients for each SVI variable to `suid_count`:
+
+```{r}
+suid_correlations <-
+    comm_training_data |>
+    as_tibble() |> 
+    select(
+        suid_count,
+        starts_with("e_")
+    ) |>
+    corrr::correlate() |> 
+    arrange(desc(abs(suid_count))) 
+
+suid_correlations |> 
+    select(term, suid_count)
+```
+
+So for example, the correlation between percentage unemployed and SUID count is 0.33. 
+
+Sidenote: the SVI dataset prefixes its variables with abbreviations to denote different types:
+
+- `e_` denotes a direct estimate
+- `ep_` denotes an estimated percentage
+- `epl_` denotes an estimated percentile
+- `rpl_` denotes a percentile rank
+- `spl_` denotes a sum of series for a thematic domain
+
+Our approach to choosing predictors was to screen performance of models in a step-wise additive fashion.
+We paid close attention to metrics that penalize for overfitting due to inclusion of too many predictor variables--aka Akaike/Bayesian Information Criteria (AIC; BIC).
+
+To shrink the number of models to screen, we started with the composite variables for each theme as well as the highest correlated sub-variable from each theme. So to start out, we screened the following variables:
+
+**Theme 1 - Socioeconomic:**
+- `rpl_theme1` - Rank Percentile for Theme 1
+- `ep_unemp` - Estimated percentage of civilians (age 16+) unemployed, 2010-2014 ACS
+
+- `e_pov`
+
+**Theme 2 - Household Composition/Disability:**
+- `rpl_theme2` - Rank Percentile for Theme 2
+- `ep_sngpnt`` - Estimated percentage of single-parent households with children under 18, 2010-2014 ACS
+
+- `e_sngpnt`
+
+**Theme 3 - Minority Status/Language:**
+- `rpl_theme3` - Rank Percentile for Theme 3
+- `ep_minrty` - Estimated percentage minority people (all persons except white, non-Hispanic), 2010-2014 ACS
+
+- `e_minrty`
+
+**Theme 4 - Housing Type/Transportation:**
+- `rpl_theme4` - Rank Percentile for Theme 4
+- `ep_noveh` - Estimated percentage of households with no vehicle available
+
+- `e_crowd`
+
+Here we fit a model using each of these variables then compared performance:
+
+```{r}
+theme1 <-
+    MASS::glm.nb(
+        suid_count ~ rpl_theme1, 
+        data = suid_training_data
+    )
+
+unemp <-
+    MASS::glm.nb(
+        suid_count ~ ep_unemp, 
+        data = suid_training_data
+    )
+
+theme2 <-
+    MASS::glm.nb(
+        suid_count ~ rpl_theme2, 
+        data = suid_training_data
+    )
+
+sngpnt <-
+    MASS::glm.nb(
+        suid_count ~ ep_sngpnt, 
+        data = suid_training_data
+    )
+
+theme3 <-
+    MASS::glm.nb(
+        suid_count ~ rpl_theme3, 
+        data = suid_training_data
+    )
+
+minrty <-
+    MASS::glm.nb(
+        suid_count ~ ep_minrty, 
+        data = suid_training_data
+    )
+
+theme4 <-
+    MASS::glm.nb(
+        suid_count ~ rpl_theme4, 
+        data = suid_training_data
+    )
+
+noveh <-
+    MASS::glm.nb(
+        suid_count ~ ep_noveh, 
+        data = suid_training_data
+    )
+
+compare_performance(
+    theme1, unemp, theme2, sngpnt, theme3, minrty, theme4, noveh,
+    metrics = "common",
+    rank = TRUE
+)
+```
+
+```{r}
+pov <-
+    MASS::glm.nb(
+        suid_count ~ e_pov, 
+        data = comm_training_data
+    )
+
+sngpnt <-
+    MASS::glm.nb(
+        suid_count ~ e_sngpnt, 
+        data = comm_training_data
+    )
+
+minrty <-
+    MASS::glm.nb(
+        suid_count ~ e_minrty, 
+        data = comm_training_data
+    )
+
+crowd <-
+    MASS::glm.nb(
+        suid_count ~ e_crowd, 
+        data = comm_training_data
+    )
+
+compare_performance(
+    pov, sngpnt, minrty, crowd,
+    metrics = "common",
+    rank = TRUE
+)
+```
+
+
+The model using percentage minority people performed the best.
+
+In an attempt to offset multi-collinearity, we added to our pool of prospective variable the variable most correlated to SUID count from each theme that also had "low" correlation to percentage minority people.
+
+```{r}
+suid_correlations |> 
+    filter(abs(ep_minrty) < 0.25) |> 
+    relocate(ep_minrty, .after = suid_count) |> 
+    select(term, suid_count, ep_minrty)
+```
+
+This resulted in adding the following to the pool of screened variables:
+
+**Theme 1 - Socioeconomic:**
+- No remaining variables with low correlation to percentage minority people
+
+**Theme 2 - Household Composition/Disability:**
+- `e_disabl` - Estimated civilian non-institutionalized population with disabilities, 2010-2014 ACS
+
+**Theme 3 - Minority Status/Language:**
+- `epl_limeng` - Estimated percentile of persons (age 5+) who speak English "less than well", 2010-2014 ACS
+
+**Theme 4 - Housing Type/Transportation:**
+- `ep_munit` - Estimated percentage of housing in structures with 10 or more units, 2010-2014 ACS
+
+Here we trial adding each of the remaining prospective variables to a model with percentage minority people, then compare performance:
+
+```{r}
+minrty_theme1 <-
+    MASS::glm.nb(
+        suid_count ~ ep_minrty + rpl_theme1, 
+        data = suid_training_data
+    )
+
+minrty_unemp <-
+    MASS::glm.nb(
+        suid_count ~ ep_minrty + ep_unemp, 
+        data = suid_training_data
+    )
+
+minrty_theme2 <-
+    MASS::glm.nb(
+        suid_count ~ ep_minrty + rpl_theme2, 
+        data = suid_training_data
+    )
+
+minrty_sngpnt <-
+    MASS::glm.nb(
+        suid_count ~ ep_minrty + ep_sngpnt, 
+        data = suid_training_data
+    )
+
+minrty_disabl <-
+    MASS::glm.nb(
+        suid_count ~ ep_minrty + e_disabl, 
+        data = suid_training_data
+    )
+
+minrty_theme3 <-
+    MASS::glm.nb(
+        suid_count ~ ep_minrty + rpl_theme3, 
+        data = suid_training_data
+    )
+
+minrty_limeng <-
+    MASS::glm.nb(
+        suid_count ~ ep_minrty + epl_limeng, 
+        data = suid_training_data
+    )
+
+minrty_theme4 <-
+    MASS::glm.nb(
+        suid_count ~ ep_minrty + rpl_theme4, 
+        data = suid_training_data
+    )
+
+minrty_noveh <-
+    MASS::glm.nb(
+        suid_count ~ ep_minrty + ep_noveh, 
+        data = suid_training_data
+    )
+
+minrty_munit <-
+    MASS::glm.nb(
+        suid_count ~ ep_minrty + ep_munit, 
+        data = suid_training_data
+    )
+
+compare_performance(
+    minrty_unemp, minrty_theme1, minrty_theme2, minrty_sngpnt, minrty_disabl, minrty_theme3, minrty, minrty_theme4, minrty_noveh, minrty_munit, minrty_limeng,
+    metrics = "common",
+    rank = TRUE
+)
+```
+
+Adding population with disabilities to the model resulted in the best performance boost.
+
+Here we trialed adding each of the remaining prospective variables to a model with percentage minority people and population with disabilities, then compared performance:
+
+```{r}
+minrty_disabl_theme1 <-
+    MASS::glm.nb(
+        suid_count ~ ep_minrty + e_disabl + rpl_theme1, 
+        data = suid_training_data
+    )
+
+minrty_disabl_unemp <-
+    MASS::glm.nb(
+        suid_count ~ ep_minrty + e_disabl + ep_unemp, 
+        data = suid_training_data
+    )
+
+minrty_disabl_theme2 <-
+    MASS::glm.nb(
+        suid_count ~ ep_minrty + e_disabl + rpl_theme2, 
+        data = suid_training_data
+    )
+
+minrty_disabl_sngpnt <-
+    MASS::glm.nb(
+        suid_count ~ ep_minrty + e_disabl + ep_sngpnt, 
+        data = suid_training_data
+    )
+
+minrty_disabl_theme3 <-
+    MASS::glm.nb(
+        suid_count ~ ep_minrty + e_disabl + rpl_theme3, 
+        data = suid_training_data
+    )
+
+minrty_disabl_limeng <-
+    MASS::glm.nb(
+        suid_count ~ ep_minrty + e_disabl + epl_limeng, 
+        data = suid_training_data
+    )
+
+minrty_disabl_theme4 <-
+    MASS::glm.nb(
+        suid_count ~ ep_minrty + e_disabl + rpl_theme4, 
+        data = suid_training_data
+    )
+
+minrty_disabl_noveh <-
+    MASS::glm.nb(
+        suid_count ~ ep_minrty + e_disabl + ep_noveh, 
+        data = suid_training_data
+    )
+
+minrty_disabl_munit <-
+    MASS::glm.nb(
+        suid_count ~ ep_minrty + e_disabl + ep_munit, 
+        data = suid_training_data
+    )
+
+compare_performance(
+    minrty_disabl, minrty_disabl_theme1, minrty_disabl_unemp, minrty_disabl_theme2, minrty_disabl_sngpnt, minrty_disabl_theme3, minrty_disabl_limeng, minrty_disabl_theme4, minrty_disabl_noveh, minrty_disabl_munit,
+    metrics = "common",
+    rank = TRUE
+)
+```
+
+Adding percentage unemployed civilians to the model resulted in the best performance boost.
+
+Here we trialed adding each of the remaining prospective variables to a model with percentage minority people, population with disabilities, and percentage unemployed civilians, then compared performance:
+
+```{r}
+minrty_disabl_unemp_theme1 <-
+    MASS::glm.nb(
+        suid_count ~ ep_minrty + e_disabl + ep_unemp + rpl_theme1, 
+        data = suid_training_data
+    )
+
+minrty_disabl_unemp_theme2 <-
+    MASS::glm.nb(
+        suid_count ~ ep_minrty + e_disabl + ep_unemp + rpl_theme2, 
+        data = suid_training_data
+    )
+
+minrty_disabl_unemp_sngpnt <-
+    MASS::glm.nb(
+        suid_count ~ ep_minrty + e_disabl + ep_unemp + ep_sngpnt, 
+        data = suid_training_data
+    )
+
+minrty_disabl_unemp_theme3 <-
+    MASS::glm.nb(
+        suid_count ~ ep_minrty + e_disabl + ep_unemp + rpl_theme3, 
+        data = suid_training_data
+    )
+
+minrty_disabl_unemp_limeng <-
+    MASS::glm.nb(
+        suid_count ~ ep_minrty + e_disabl + ep_unemp + epl_limeng, 
+        data = suid_training_data
+    )
+
+minrty_disabl_unemp_theme4 <-
+    MASS::glm.nb(
+        suid_count ~ ep_minrty + e_disabl + ep_unemp + rpl_theme4, 
+        data = suid_training_data
+    )
+
+minrty_disabl_unemp_noveh <-
+    MASS::glm.nb(
+        suid_count ~ ep_minrty + e_disabl + ep_unemp + ep_noveh, 
+        data = suid_training_data
+    )
+
+minrty_disabl_unemp_munit <-
+    MASS::glm.nb(
+        suid_count ~ ep_minrty + e_disabl + ep_unemp + ep_munit, 
+        data = suid_training_data
+    )
+
+compare_performance(
+    minrty_disabl_unemp, minrty_disabl_unemp_theme1, minrty_disabl_unemp_theme2, minrty_disabl_unemp_sngpnt, minrty_disabl_unemp_theme3, minrty_disabl_unemp_limeng,  minrty_disabl_unemp_theme4, minrty_disabl_unemp_noveh, minrty_disabl_unemp_munit,
+    metrics = "common",
+    rank = TRUE
+)
+```
+
+Adding percentage single-parent households to the model resulted in the best performance boost.
+
+Here we trialed adding each of the remaining prospective variables to a model with percentage minority people, population with disabilities, percentage unemployed civilians, and percentage single-parent households, then compared performance:
+
+```{r}
+minrty_disabl_unemp_sngpnt_theme1 <-
+    MASS::glm.nb(
+        suid_count ~ ep_minrty + e_disabl + ep_unemp + ep_sngpnt + rpl_theme1, 
+        data = suid_training_data
+    )
+
+minrty_disabl_unemp_sngpnt_theme2 <-
+    MASS::glm.nb(
+        suid_count ~ ep_minrty + e_disabl + ep_unemp + ep_sngpnt + rpl_theme2, 
+        data = suid_training_data
+    )
+
+minrty_disabl_unemp_sngpnt_theme3 <-
+    MASS::glm.nb(
+        suid_count ~ ep_minrty + e_disabl + ep_unemp + ep_sngpnt + rpl_theme3, 
+        data = suid_training_data
+    )
+
+minrty_disabl_unemp_sngpnt_limeng <-
+    MASS::glm.nb(
+        suid_count ~ ep_minrty + e_disabl + ep_unemp + ep_sngpnt + epl_limeng, 
+        data = suid_training_data
+    )
+
+minrty_disabl_unemp_sngpnt_theme4 <-
+    MASS::glm.nb(
+        suid_count ~ ep_minrty + e_disabl + ep_unemp + ep_sngpnt + rpl_theme4, 
+        data = suid_training_data
+    )
+
+minrty_disabl_unemp_sngpnt_noveh <-
+    MASS::glm.nb(
+        suid_count ~ ep_minrty + e_disabl + ep_unemp + ep_sngpnt + ep_noveh, 
+        data = suid_training_data
+    )
+
+minrty_disabl_unemp_sngpnt_munit <-
+    MASS::glm.nb(
+        suid_count ~ ep_minrty + e_disabl + ep_unemp + ep_sngpnt + ep_munit, 
+        data = suid_training_data
+    )
+
+compare_performance(
+    minrty_disabl_unemp_sngpnt, minrty_disabl_unemp_sngpnt_theme1, minrty_disabl_unemp_sngpnt_theme2, minrty_disabl_unemp_sngpnt_theme3, minrty_disabl_unemp_sngpnt_limeng, minrty_disabl_unemp_sngpnt_theme4, minrty_disabl_unemp_sngpnt_noveh, minrty_disabl_unemp_sngpnt_munit,
+    metrics = "common",
+    rank = TRUE
+)
+```
+
+Adding theme 4 percentile to the model resulted in the best performance boost.
+
+Here we trialed adding each of the remaining prospective variables to a model with percentage minority people, population with disabilities, percentage unemployed civilians, percentage single-parent households, and theme 4 percentile, then compared performance:
+
+```{r}
+minrty_disabl_unemp_sngpnt_theme4_theme1 <-
+    MASS::glm.nb(
+        suid_count ~ ep_minrty + e_disabl + ep_unemp + ep_sngpnt + rpl_theme4 + rpl_theme1, 
+        data = suid_training_data
+    )
+
+minrty_disabl_unemp_sngpnt_theme4_theme2 <-
+    MASS::glm.nb(
+        suid_count ~ ep_minrty + e_disabl + ep_unemp + ep_sngpnt + rpl_theme4 + rpl_theme2, 
+        data = suid_training_data
+    )
+
+minrty_disabl_unemp_sngpnt_theme4_theme3 <-
+    MASS::glm.nb(
+        suid_count ~ ep_minrty + e_disabl + ep_unemp + ep_sngpnt + rpl_theme4 + rpl_theme3, 
+        data = suid_training_data
+    )
+
+minrty_disabl_unemp_sngpnt_theme4_limeng <-
+    MASS::glm.nb(
+        suid_count ~ ep_minrty + e_disabl + ep_unemp + ep_sngpnt + rpl_theme4 + epl_limeng, 
+        data = suid_training_data
+    )
+
+minrty_disabl_unemp_sngpnt_theme4_noveh <-
+    MASS::glm.nb(
+        suid_count ~ ep_minrty + e_disabl + ep_unemp + ep_sngpnt + rpl_theme4 + ep_noveh, 
+        data = suid_training_data
+    )
+
+minrty_disabl_unemp_sngpnt_theme4_munit <-
+    MASS::glm.nb(
+        suid_count ~ ep_minrty + e_disabl + ep_unemp + ep_sngpnt + rpl_theme4 + ep_munit, 
+        data = suid_training_data
+    )
+
+compare_performance(
+    minrty_disabl_unemp_sngpnt_theme4, minrty_disabl_unemp_sngpnt_theme4_theme1, minrty_disabl_unemp_sngpnt_theme4_theme2, minrty_disabl_unemp_sngpnt_theme4_theme3, minrty_disabl_unemp_sngpnt_theme4_limeng, minrty_disabl_unemp_sngpnt_theme4_noveh, minrty_disabl_unemp_sngpnt_theme4_munit,
+    metrics = "common",
+    rank = TRUE
+)
+```
+
+None of the remaining prospective variables added a boost to model performance.
+
+Here we compared all step-wise iterations of the model to each other:
+
+```{r}
+compare_performance(
+    minrty_disabl_unemp_sngpnt_theme4, minrty_disabl_unemp_sngpnt, minrty_disabl_unemp, minrty_disabl, minrty,
+    metrics = "common"
+) 
+```
+
+We see that the model with all five variables had the best raw AIC score, but the model with only 3 variables had the best BIC. The models with 3-5 variables had negligible differences in Nagelkerke's R^2.
+
+To aid with deciding which model to select as our final candidate, we visualized the "hanging rootogram" for each model's fit on the training data. Please refer to [this article](https://arxiv.org/abs/1605.01311) on how to interpret a rootogram.
+
+```{r}
+source("R/plot_rootogram.R")
+
+plot_rootogram(minrty)
+```
+
+The one-variable model couldn't predict any of the census tracts with counts of 2 or greater and it overestimated the number of tracts with a count of 1.
+
+```{r}
+plot_rootogram(minrty_disabl) 
+```
+
+The two-variable model greatly improved on the issue of over-predicting tracts with counts of 1, but it still could not predict any tracts with counts of 2 or greater.
+
+```{r}
+plot_rootogram(minrty_disabl_unemp)
+```
+
+The three-variable model started to be able to predict some of the tracts with counts of 2 or 3, but still could not predict any with counts of 4 or greater.
+
+```{r}
+plot_rootogram(minrty_disabl_unemp_sngpnt)
+```
+
+The four-variable model fit looked almost identical to that of the three-variable model except that it was able to predict one more of the tracts with counts of 2.
+
+```{r}
+plot_rootogram(minrty_disabl_unemp_sngpnt_theme4)
+```
+
+The five-variable model fit looked almost identical to that of the four-variable model and didn't change the number of tracts predicted with counts of 2 or greater.
+
+Given these visualizations, we choose the four-variable model as striking the best balance between under- and over-fitting. 
+
+To recap, our final model used a negative binomial generalized linear model, did not adjust for zero-inflation, did not include an offset for overall population, and included the following predictor covariates:
+
+**Theme 1 - Socioeconomic:**
+- `ep_unemp` - Estimated percentage of civilians (age 16+) unemployed, 2010-2014 ACS
+
+**Theme 2 - Household Composition/Disability:**
+- `ep_sngpnt`` - Estimated percentage of single-parent households with children under 18, 2010-2014 ACS
+- `e_disabl` - Estimated civilian non-institutionalized population with disabilities, 2010-2014 ACS
+
+**Theme 3 - Minority Status/Language:**
+- `ep_minrty` - Estimated percentage minority people (all persons except white, non-Hispanic), 2010-2014 ACS
+
+**Theme 4 - Housing Type/Transportation:**
+- No variables from this theme made the cut.

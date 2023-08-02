@@ -1,6 +1,7 @@
-tabulate_suid_counts <- function(suid_from_internal_df) {
+tabulate_suid_counts <- function(suid_sf) {
     
-    suid_from_internal_df |> 
+    suid_sf |>
+        as_tibble() |> 
         tabyl(suid_count) |> 
         adorn_pct_formatting() |> 
         rename(

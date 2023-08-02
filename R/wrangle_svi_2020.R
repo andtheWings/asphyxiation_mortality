@@ -5,7 +5,8 @@ wrangle_svi_2020 <- function(svi_2020_raw_df) {
         janitor::clean_names() |> 
         select(
             fips,
-            ep_unemp, ep_sngpnt, ep_minrty, ep_noveh
+            e_totpop, e_crowd, e_pov = e_pov150,
+            ep_unemp, ep_sngpnt, ep_minrty, e_disabl
         ) |> 
         mutate(
             fips = as.numeric(fips)

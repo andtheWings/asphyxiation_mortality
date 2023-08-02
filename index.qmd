@@ -1,4 +1,4 @@
-
+# Using Social Vulnerability Indices to Predict Priority Areas for Prevention of Sudden Unexpected Infant Death in Cook County, IL: Cross-Sectional Study
 
 {{< include 01-abstract.qmd >}}
 

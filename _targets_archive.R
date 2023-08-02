@@ -46,7 +46,16 @@ list(
     # 
     
     
-    
+    # Source: PLACES: Local Data for Better Health, Census Tract Data 2021 release
+    # URL: https://chronicdata.cdc.gov/500-Cities-Places/PLACES-Local-Data-for-Better-Health-Census-Tract-D/373s-ayzu
+    tar_target(
+        name = places_raw,
+        command = RSocrata::read.socrata("https://chronicdata.cdc.gov/resource/373s-ayzu.csv?countyfips=17031&year=2019")
+    ),
+    tar_target(
+        name = places,
+        command = wrangle_places(places_raw)
+    ),
     
     
     

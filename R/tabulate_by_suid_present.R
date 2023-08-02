@@ -7,7 +7,7 @@ tabulate_by_suid_present <- function(suid_sf) {
         as_tibble() |> 
         select(
             suid_present,
-            "Median Age" = e_median_age,
+            "Median Age (years)" = e_median_age,
             #"Dependency Ratio (per 100)" = dependency_ratio,
             #"Under 5 Years Old (%)" = under_5_perc,
             "Sex Ratio (males per 100 females)" = e_sex_ratio,
@@ -23,8 +23,12 @@ tabulate_by_suid_present <- function(suid_sf) {
             "Household Composition SVI" = rpl_theme2,
             "Minority Status/Language SVI" = rpl_theme3,
             "Housing Type/Transportation SVI" = rpl_theme4,
-            "Currently Smoking" = ep_smoking,
-            "Binge Drinking" = ep_binge
+            # "Unemployed Residents" = ep_unemp,
+            # "Single-Parent Households" = ep_sngpnt,
+            # "Minority Residents" = ep_minrty,
+            # "No-Vehicle Households" = ep_noveh,
+            # "Currently Smoking" = ep_smoking,
+            # "Binge Drinking" = ep_binge
             # "Black (%)" = black,
             # "White (%)" = white,
             # "Hispanic (%)" = hispanic,
@@ -76,13 +80,22 @@ tabulate_by_suid_present <- function(suid_sf) {
         # ) |>
         rm_header(
         ) |> 
-        tab_row_group(
-            md("**Substance Use (%)**"),
-            c(
-                "Binge Drinking",
-                "Currently Smoking"
-            )
-        ) |>
+        # tab_row_group(
+        #     md("**Substance Use (%)**"),
+        #     c(
+        #         "Binge Drinking",
+        #         "Currently Smoking"
+        #     )
+        # ) |>
+        # tab_row_group(
+        #     md("**Selected SVI Sub-Metrics (%)**"),
+        #     c(
+        #         "No-Vehicle Households",
+        #         "Minority Residents",
+        #         "Single-Parent Households",
+        #         "Unemployed Residents"
+        #     )
+        # ) |> 
         tab_row_group(
             md("**Socioecononomic Vulnerability Index (national percentile)**"),
             matches("SVI")
@@ -134,7 +147,7 @@ tabulate_by_suid_present <- function(suid_sf) {
             )
         ) |>
         tab_row_group(md("**Sex**"), "Sex Ratio (males per 100 females)") |> 
-        tab_row_group(md("**Age**"), "Median Age (years") |> 
+        tab_row_group(md("**Age**"), "Median Age (years)") |> 
         tab_style(
             style = cell_text(align = "left"),
             locations = cells_stub()

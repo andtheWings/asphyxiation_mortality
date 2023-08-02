@@ -1,4 +1,4 @@
-plot_rootogram <- function(model_obj) {
+plot_rootogram <- function(model_obj, new_data_sf = NULL, x_lab = "Count Value") {
     
     observed_df <-
         model_obj |> 
@@ -7,7 +7,7 @@ plot_rootogram <- function(model_obj) {
     
     predicted_df <-
         model_obj |> 
-        insight::get_predicted() |>
+        insight::get_predicted(newdata = new_data_sf) |>
         tibble::as_tibble() |> 
         dplyr::mutate(
             binned_pred = 
@@ -21,7 +21,8 @@ plot_rootogram <- function(model_obj) {
                     Predicted >= 5.5 ~ 6
                 )
         ) |> 
-        janitor::tabyl(binned_pred)
+        janitor::tabyl(binned_pred) |> 
+        filter(!is.na(binned_pred))
     
     diff <- nrow(observed_df) - nrow(predicted_df)
     
@@ -40,18 +41,18 @@ plot_rootogram <- function(model_obj) {
     
     plot1 <-
         rootogram_tbl |> 
-        ggplot(
-            aes(
+        ggplot2::ggplot(
+            ggplot2::aes(
                 x = count_value,
                 y = sqrt(predicted_freq)
             )
         ) +
-        geom_hline(
+        ggplot2::geom_hline(
             yintercept = 0,
-            size = 0.35
+            linewidth = 0.35
         ) +
-        geom_rect(
-            aes(
+        ggplot2::geom_rect(
+            ggplot2::aes(
                 xmin = count_value - 0.35,
                 xmax = count_value + 0.35,
                 ymin = sqrt(predicted_freq) - sqrt(observed_freq),
@@ -59,25 +60,28 @@ plot_rootogram <- function(model_obj) {
             ),
             fill = "gray60"
         ) +
-        geom_line(
+        ggplot2::geom_line(
             #color = "red"
         ) +
-        geom_point(
+        ggplot2::geom_point(
             #color = "red"
         ) +
-        labs(
-            title = 
-                paste0(
-                    "Family: ",
-                    insight::model_info(model_obj)$family,
-                    ", Zero-Inflated: ",
-                    as.character(insight::model_info(model_obj)$is_zero_inflated)
-                ),
-            x = "Count Value",
+        ggplot2::labs(
+            title = NULL,
+                # paste0(
+                #     "Family: ",
+                #     insight::model_info(model_obj)$family,
+                #     ", Zero-Inflated: ",
+                #     as.character(insight::model_info(model_obj)$is_zero_inflated)
+                # ),
+            x = x_lab,
             y = "sqrt(Frequency)"
         ) +
-        theme_bw()
+        ggplot2::theme_bw()
     
-    return(plot1)
+    return(
+        plot1
+        # list(observed_df, predicted_df, rootogram_tbl)
+    )
     
 }

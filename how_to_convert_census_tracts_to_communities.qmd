@@ -1,0 +1,153 @@
+---
+title: "Census Tract to Community"
+author: "Daniel P. Hall Riggins"
+format: html
+---
+
+## Dependencies
+
+```{r}
+library(sf)
+library(tidyverse)
+library(tmap)
+```
+
+## Steps
+
+### 1. Get all census tracts of Cook County
+
+```{r}
+census_vars <- 
+    tidycensus::load_variables(year = 2020, dataset = "acs5") |> 
+    filter(geography == "tract")
+```
+
+
+```{r}
+census_tracts <-
+    tidycensus::get_acs(
+        geography = "tract",
+        variables = "B08101_025", # Population taking public transit to work
+        year = 2020,
+        state = 17, # Illinois
+        county = 031, # Cook County
+        geometry = TRUE # Also download the spatial boundaries for each tract
+    ) |> 
+    filter(!(GEOID == 17031990000)) # Has empty polygon
+ 
+view(census_tracts)
+```
+
+```{r}
+library(tmap)
+
+tmap_mode("view") # Make interactive plot
+
+tract_map <-
+    tm_shape(census_tracts) + # Set the data source
+    tm_polygons("estimate", alpha = 0.7) # Specify the variable you want visualized
+
+htmlwidgets::saveWidget(tract_map, "temp.html")
+```
+
+### Interlude: Subset just to Austin and Oak Park
+
+```{r}
+targets::tar_load(tract_rev_geocodes_all) # Load previously geocoded data
+
+just_austin_and_oak_park <-
+    tract_rev_geocodes_all |> 
+    filter(community %in% c("Austin", "Oak Park"))
+
+census_tracts <-
+    census_tracts |> 
+    filter(GEOID %in% just_austin_and_oak_park$fips)
+
+# Outputs 38 census tracts
+```
+
+### 2. Calculate centroids for each census tract
+
+```{r}
+census_tract_centroids <-
+    census_tracts |>
+    mutate(
+        # Iterate through each spatial polygon and calculate longitude/latitude
+        longitude = map_dbl(geometry, ~st_centroid(.x)[[1]]),
+        latitude = map_dbl(geometry, ~st_centroid(.x)[[2]]),
+    )  |> 
+    # Data reshaping steps
+    as_tibble() |>
+    select(-geometry) |> 
+    st_as_sf(coords = c("longitude", "latitude"))
+
+```
+
+```{r}
+tm_shape(census_tracts) + # Set the data source
+    tm_polygons("estimate", alpha = 0.7) + # Specify the variable you want visualized 
+    tm_shape(census_tract_centroids) + # Add centroid data layer
+    tm_dots() # And specify you want to visualize the points
+```
+
+### 3. Geotag each census tract's centroid
+
+```{r}
+tagged_census_tracts <- 
+    census_tract_centroids |> 
+        select(GEOID, longitude, latitude) |> 
+        opencage::oc_reverse_df(latitude, longitude, output = "all") |> 
+        mutate(oc_quarter = case_when(oc_city == "Chicago" ~ "Austin"))
+
+tagged_census_tracts |> 
+    select(GEOID, longitude, latitude, oc_city, oc_quarter, oc_town)
+```
+
+### 4. Develop decision rule for assigning tracts to a community
+
+```{r}
+tagged_census_tracts <-
+    tagged_census_tracts |> 
+        mutate(
+            community =
+                case_when(
+                    oc_quarter == "Austin" ~ "Austin",
+                    oc_town == "Oak Park" ~ "Oak Park"
+                )
+        ) 
+    select(GEOID, longitude, latitude, oc_quarter, oc_town, community)
+
+tagged_census_tracts
+```
+
+### 5. Spatially join the tracts
+
+```{r}
+communities <-
+    census_tracts |>
+    # Join the tagged data to our original dataset pertaining to public transit
+    left_join(
+        select(tagged_census_tracts, GEOID, community),
+        by = "GEOID"
+    ) |> 
+    # Aggregate the estimate totals and implicitly combine the spatial polygons
+    group_by(community) |> 
+    summarise(
+        total_public_transit = sum(estimate),
+        # Use special method for calculating margin of error from census survey data
+        moe = tidycensus::moe_sum(moe, estimate)
+    )
+
+communities
+```
+
+```{r}
+tm_shape(communities) +
+    tm_polygons("total_public_transit", alpha = 0.7) +
+    tm_shape(census_tract_centroids) +
+    tm_dots()
+```
+
+
+
+

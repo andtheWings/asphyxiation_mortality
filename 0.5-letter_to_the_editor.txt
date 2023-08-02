@@ -1,0 +1,31 @@
+Dear Dr. Sanchez,
+
+We present for your consideration our manuscript entitled “Using Social Vulnerability Indices to Predict Priority Areas for Prevention of Sudden Unexpected Infant Death in Cook County, IL: Cross-Sectional Study”. Cook County spans a large geographic area with a dense, highly diverse population. This work was born out of the need of local public health practitioners to have some means of prioritizing and targeting their interventions for greater efficacy. We sought to develop practical tools to aid in decision-making that were statistically rigorous, yet simple to understand. One key output of this work was an interactive map of case counts available on the first author's personal website: http://danielriggins.com/widgets/suid_counts_cook_county_communities.html.
+
+Working drafts of this work have been previously available via the author's Github account:
+- Early Draft: https://github.com/andtheWings/cook_county_suid_manuscript
+    - Rendered at: http://danielriggins.com/cook_county_suid_manuscript/
+- More Recent Drafts: https://github.com/andtheWings/cook_county_sids_mortality
+    - No rendering of later drafts
+
+Additionally, this manuscript was submitted as a culminating experience for the first author's Master of Public Health degree. In this form, it will be stored on Northwestern University Feinberg School of Medicine's Prism Digital Archive. The terms of this archive state, "By accepting this license, you do not give up the copyright to your work. You do not give up the right to submit the work to publishers or other repositories."
+
+Please let us know if you have follow-up questions about previous non-peer-reviewed publications of this work.
+
+All authors have substantially contributed to this manuscript. None of the authors have financial disclosures. All authors have viewed the final version of this manuscript and given their approval for its submission.
+
+Regards,
+
+Daniel Riggins, Huiyuan Zhang, and William Trick
+
+## Suggested Reviewers
+
+Gretchen Bandoli
+University of California San Diego
+gbandoli@ucsd.edu
+Pregnancy, Early Childhood, Determinants of Health, Gestational Substance Exposure
+
+Brittany Chambers
+University of California San Francisco
+brittany.chambers@ucsf.edu
+Structural Racism, Perinatal Health

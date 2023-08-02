@@ -2,7 +2,9 @@
 
 ### Case Identification
 
-Our SQL query identified 333 prospective cases of SUID from the medical examiner archives. Representatives from the SUID Case Registry of Cook County recommended the addition of XXX cases and removal of XXX cases. Our query identified XXX cases that were not in the registry, but deemed to be valid additions. This process yielded XXX SUID cases in total.
+Our SQL query identified 333 prospective cases of SUID from the medical examiner archives. Representatives from the SUID Case Registry of Cook County reviewed the cases and recommended retaining 325.
+
+<!-- Our SQL query identified 333 prospective cases of SUID from the medical examiner archives. Representatives from the SUID Case Registry of Cook County recommended the addition of XXX cases and removal of XXX cases. Our query identified XXX cases that were not in the registry, but deemed to be valid additions. This process yielded XXX SUID cases in total. -->
 
 <!-- We tabulated descriptive characteristics of validated SUID cases (Table XXX). -->
 
@@ -10,147 +12,145 @@ Our SQL query identified 333 prospective cases of SUID from the medical examiner
 
 <!-- SUID cases had a higher prevalence of Black infants and favored location in Chicago (vs. Cook County Suburbs) compared to the reference population. -->
 
-### Census Tract Aggregation
+### Geospatial Aggregation
 
-There were 1319 total census tracts in Cook County in 2019. Four tracts had estimated populations of zero and respectively covered Lake Michigan, Midway International Airport, O'Hare International Airport, and Robert Rochon Taylor Park. We excluded these four tracts from the rest of the analysis. 237 of 1315 analyzed tracts had at least one case of SUID present (@tbl-suid-counts).
+We spatially aggregated cases into counts within 199 communities. 
+49% of communities (97/199) observed at least one case of SUID from 2015-2019. 
+@tbl-suid-counts shows the full distribution of case counts.
+
+<!-- In 2019, there were 1,319 total census tracts in Cook County. Four tracts had estimated populations of zero and respectively covered Lake Michigan, Midway International Airport, O'Hare International Airport, and Robert Rochon Taylor Park. We excluded these four tracts from the rest of the analysis. 237 of 1315 analyzed tracts had at least one case of SUID present from 2015-2019 (@tbl-suid-counts). -->
 
 ```{r}
-#| label: tbl-suid-counts
-#| tbl-cap: Distribution of SUID Case Counts in Census Tracts of Cook County, IL, 2015-2019
-
-gt::gt(targets::tar_read(table_suid_counts))
+# gt::gt(targets::tar_read(table_suid_agg_counts)) |> 
+#     gt::gtsave("temp_table.html")
 ```
+
+![Distribution of SUID Case Counts in Census Tracts of Cook County, IL, 2015-2019](_media/suid_case_count_distribution_comm.png){#tbl-suid-counts}
 
 ### Mapping SUID Case Counts
 
-We created an [interactive map](http://danielriggins.com/widgets/cook_county_suid_map.html) of SUID case counts (@fig-suid-map-overview). We subjectively noted clusters of deaths on the West Side of Chicago in neighborhoods like Garfield Park, Humboldt Park, and North Lawndale (@fig-map-suid-west-chicago); on the South Side in neighborhoods like Englewood, Pullman, and Woodlawn (@fig-map-suid-south-chicago); and in Southern Suburbs like Chicago Heights, Harvey, Hazel Crest, Olympia Fields, and Park Forest (@fig-map-suid-south-suburbs).
+We generated an interactive map of SUID case counts [@fig-map-suid-overview].
+Broadly speaking, the map showed subjective clusters of cases on the West and South Sides of Chicago [@fig-map-suid-chicago] as well as the South Suburbs of Cook County [@fig-map-suid-south-suburbs].
+The top five communities with the largest case counts were all located in Chicago city limits: Austin (17), Englewood (17), West Englewood (14), West Pullman (11), and Humboldt Park (10).
+The community outside of city limits with the largest case count was Chicago Heights (7).
 
-![Overview Map of SUID Case Counts](_media/suid_map_overview.png){#fig-suid-map-overview}
+![SUID Case Count Overview Map](_media/suid_map_overview.png){#fig-map-suid-overview}
 
-![Westside of Chicago](_media/suid_west_chicago.png){#fig-map-suid-west-chicago}
+![SUID Case Counts in Chicago](_media/suid_chicago.png){#fig-map-suid-chicago}
 
-![Southside of Chicago](_media/suid_south_chicago.png){#fig-map-suid-south-chicago}
 
-![South Suburbs of Cook County](_media/suid_south_suburbs.png){#fig-map-suid-south-suburbs}
+![SUID Case Counts in South Suburbs of Cook County*](_media/suid_south_suburbs.png){#fig-map-suid-south-suburbs}
 
-### Comparison of Tracts
+### Comparing Tracts With and Without SUID
 
-@tbl-by-suid-present compares characteristics of census tracts with at least one case of SUID versus those without. 
-There were not detectable differences in age or sex composition nor in percentages of people reporting current smoking or binge drinking. 
-Although their interquartile ranges overlapped, tracts with SUID present exhibited meaningfully lower composition of Non-Hispanic White residents at 4% (IQR 1-23) vs. 46% (IQR 13-71) (@fig-white-comp) and higher composition of Non-Hispanic Black residents at 68% (IQR 11-92) vs. 4% (IQR 2-29) (@fig-black-comp). 
-Census tracts with SUID present also consistently showed subjectively higher indices of social vulnerability.
-
-```{r}
-#| label: tbl-by-suid-present
-#| tbl-cap: Comparing Census Tracts by Presence of SUID
-targets::tar_read(table_by_suid_present)
-```
+@tbl-by-suid-present compares basic demographics of communities with at least one case of SUID versus those without. 
+There were no meaningful differences in age or sex composition, however, communities with SUID present exhibited lower composition of Non-Hispanic White residents at 17% (IQR 4-49) vs. 60% (IQR 31-76) [@fig-white-comp] and higher composition of Non-Hispanic Black residents at 32% (IQR 6-79) vs. 3% (IQR 2-10) [@fig-black-comp], although the interquartile ranges for these estimates overlapped. 
+Variables algorithmically selected for use in the predictive model also showed meaningful differences.
 
 ```{r}
-#| label: fig-white-comp
-#| fig-cap: Comparing White Racial Composition in Census Tracts by Presence of SUID
-
-targets::tar_read(plot_of_white_by_suid_present)
+# targets::tar_read(table_by_suid_present_comm) |> 
+#     gt::gtsave("temp_table.html")
 ```
+
+![Comparing Communities of Cook County, IL by Presence of SUID (2015-2019)](_media/table_by_suid_present.png){#tbl-by-suid-present}
 
 ```{r}
-#| label: fig-black-comp
-#| fig-cap: Comparing Black Racial Composition in Census Tracts by Presence of SUID
-
-targets::tar_read(plot_of_black_by_suid_present)
+# targets::tar_read(plot_of_white_by_suid_present_comm)
 ```
 
-### Modeling SUID Presence
-
-We initially fit a negative binomial generalized linear regression model of SUID case counts predicted from percent unemployed and percent minority residents. 
-It was unable to accurately predict census tracts with case counts above one (data not shown).
-
-Given this limitation in modeling counts, we simplified to a logistic regression model of SUID presence also predicted from percent unemployed and percent minority residents. 
-Compared to an intercept-only logistic model, our model performed better on AIC/BIC and AUC. 
-The two models had comparable root-mean-squared error (@tbl-logistic-performance). 
-@fig-roc visualizes the ROC curves for both models with a point annotated at our chosen classification threshold of 0.19. 
-When predicted cases were set at this threshold, the model achieved sensitivity of 73% and specificity of 71% (@tbl-2-by-2).
+![Comparing White Racial Composition in Communities of Cook County, IL by by Presence of SUID](_media/fig_white_comp.png){#fig-white-comp}
 
 ```{r}
-#| label: tbl-logistic-performance
-#| tbl-cap: Logistic Model Performance
-
-targets::tar_read(table_logistic_performance)
+# targets::tar_read(plot_of_black_by_suid_present_comm)
 ```
+![Comparing Black Racial Composition in Communities of Cook County, IL by by Presence of SUID](_media/fig_black_comp.png){#fig-black-comp}
+
+### Modeling SUID Case Counts
+
+We fit a negative binomial regression model to predict SUID case counts for each community of Cook County based on total population, total people living below the poverty line, and total households with more occupants than rooms ("crowded" households) [@tbl-parameters]. 
+The model was retrospectively trained on SUID case counts for 2015-2019 with predictor variables from the 2014 SVI/ACS. 
+@fig-rootogram depicts goodness of fit for the model on the training data, showing that it captured mid-range counts well, but under-predicted the number of communities with zero cases, over-predicted those with one case, and under-predicted those with counts over 6.
+See Supplement 1 for further details on model selection and evaluation of performance.
 
 ```{r}
-#| label: fig-roc
-#| fig-cap: ROC Curves
-targets::tar_read(plot_of_rocs) 
+# targets::tar_read(table_negbinomial_parameters_comm) |> 
+#     gt::gtsave("temp_table.html")
 ```
+
+![Exponentiated Parameters for the Negative Binomial Regression Model Predicting SUID Case Counts in Communities of Cook County, IL](_media/tbl_parameters.png){#tbl-parameters}
+
+IRR = Incidence Rate Ratio, interpreted as the magnitude by which you would multiply the risk with a unit increase of 1 for each covariate
+SE = Standard Error
+95% CI = 95% Confidence Interval
+z = Standardized Z-score
+p = P-value
 
 ```{r}
-#| label: tbl-2-by-2
-#| tbl-cap: Contingency Table for Logistic Model with Prediction Threshold of 0.19
-targets::tar_read(table_2_by_2)
+# plot_rootogram(negbinomial_full_model_comm, x_lab = "SUID Case Count Value")
 ```
 
-@tbl-parameters shows estimated odds ratios for parameters in our logistic regression model.
-For both the percentage unemployed and percentage minority residents, the model expected that an increase of one percentage point increased the odds of a case of SUID by 3%.
+![Rootogram Depicting Goodness of Fit for the Negative Binomial Regression Model Predicting SUID Case Counts in Communities of Cook County, IL](_media/fig_rootogram.png){#fig-rootogram}
+
+Observed case counts are the bars "hanging" from predicted case counts pinned at the dots. For under-predictions, the bar will hang below zero, for over-predictions, the bar will hang above zero.
+
+The median difference between predicted and observed case counts in the training data was 0.24 (IQR -0.57, 0.60).
+All five communities with the highest observed case counts (Austin, Englewood, West Englewood, West Pullman, and Humboldt Park) were also among the communities with the most significant individual under-predictions (ranging from 4.05 to 7.61 less than that observed).
+On the other end of the spectrum, the five communities with the most significant individual over-predictions were Douglas, Grand Boulevard, Kenwood, Rogers Park, and Chicago Lawn (ranging from 2.94 to 4.77 more than that observed).
 
 ```{r}
-#| label: tbl-parameters
-#| tbl-cap: Exponentiated Parameters for the Logistic Regression Model
-targets::tar_read(logistic_full_model) |> 
-    parameters::parameters(exponentiate = TRUE) |>
-    dplyr::rename(`Odds Ratio` = Coefficient) |> 
-    parameters::print_html()
-    
+# suid_training_data_assess_comm |>
+#     select(community, suid_count, .predicted, .predicted_obs_diff) |>
+#     arrange(desc(.predicted))
+# 
+# summary(suid_training_data_assess_comm$.predicted_obs_diff)
 ```
 
+### Prospective Model Predictions
 
-We generated forward predictions for the presence of SUID during the time period 2021-2025 using 2020-vintage SVI predictor data fed into our logistic regression model. We further classified the prediction for each census tract by whether it was consistent with historical observation during 2015-2019 (@tbl-map-classifications).
+We applied predictor variables from the 2020 SVI/ACS to our trained model to predict case counts for 2021-2025. 
+Based on shifting demographics in the predictor variables, the model predicted the five communities with the highest case counts would be Austin (17), Englewood (14), Auburn Gresham (12), Chicago Lawn (12), and South Shore (11) for this time period (Data available in Supplement 2).
 
-+--------------------+-------------------------------------------+----------------------------------+
-| Predicted Outcome\ | Historical Outcome\                       | Classification                   |
-| (2021-2025)        | (2015-2019)                               |                                  |
-+====================+===========================================+==================================+
-| SUID Predicted     | SUID Observed                             | Persistently Present             |
-+--------------------+-------------------------------------------+----------------------------------+
-| SUID Predicted     | Tract is new to the 2020 decennial census | Present (no previous comparison) |
-+--------------------+-------------------------------------------+----------------------------------+
-| SUID Predicted     | SUID Not Observed                         | Newly Present                    |
-+--------------------+-------------------------------------------+----------------------------------+
-| SUID Not Predicted | SUID Observed                             | Newly Absent                     |
-+--------------------+-------------------------------------------+----------------------------------+
-| SUID Not Predicted | Tract is new to the 2020 decennial census | Absent (no previous comparison)  |
-+--------------------+-------------------------------------------+----------------------------------+
-| SUID Not Predicted | SUID Not Observed                         | Persistently Absent              |
-+--------------------+-------------------------------------------+----------------------------------+
+```{r}
+# tar_load(suid_nb_prediction_data_comm)
+# 
+# top_25_observed <-
+#     suid_nb_prediction_data_comm |>
+#     arrange(desc(suid_count)) |>
+#     relocate(.predicted, .after = suid_count) |>
+#     head(25)
+# 
+# top_25_predicted <-
+#     suid_nb_prediction_data_comm |>
+#     arrange(desc(.predicted)) |>
+#     relocate(.predicted, .after = suid_count) |>
+#     head(25)
+# 
+# anti_join(top_25_observed, as_tibble(top_25_predicted), by = "community")
+# 
+# suid_nb_prediction_data_comm |>
+#     arrange(desc(.predicted_obs_diff)) |>
+#     relocate(.predicted, .predicted_obs_diff, .after = suid_count) 
+```
 
-: Prediction Classification Scheme {#tbl-map-classifications}
+<!-- ```{r} -->
+<!-- # source("R/map_suid_prediction_categories.R") -->
+<!-- # map_suid_prediction_categories( -->
+<!-- #     targets::tar_read(suid_nb_prediction_data) |>  -->
+<!-- #         # dplyr::filter(jurisdiction != "Chicago") |>  -->
+<!-- #         sf::st_transform(4326) -->
+<!-- # ) |>  -->
+<!-- #     htmlwidgets::saveWidget( -->
+<!-- #         "/home/riggins/andtheWings.github.io/widgets/SUID_prediction_map.html", -->
+<!-- #         selfcontained = TRUE -->
+<!-- #     ) -->
+<!-- ``` -->
 
-### Mapping Model Results
-
-We generated a second [interactive map](https://danielriggins.com/widgets/SUID_prediction_map.html) color-coded by the prediction classification scheme (@fig-prediction-map-overview).
-Public health jurisdiction for this region is divided between separate local health departments in Chicago, Evanston, Oak Park, Skokie, Stickney, and the rest of Suburban Cook County. 
-To aid focused decision-making, we added a layer control to the map so that each department could filter for tracts within its respective jurisdiction.
-Chicago showed a diagonal swath of predicted tracts across the West and South Sides (@fig-prediction-map-chicago).
-Evanston showed a single tract classified as persistently present (@fig-prediction-map-evanston).
-Oak Park, Skokie, and Stickney did not show tracts with historically observed or proactively predicted cases.
-The rest of Suburban Cook County showed clusters around West Suburbs like Bellwood, Maywood, and Cicero as well as Far South Suburbs like Blue Island, Calumet City, Chicago Heights, Dyer, Harvey, Hazel Crest, and Matteson (@fig-prediction-map-suburbs).
-
-![SUID Prediction Map Overview](_media/prediction_map_overview.png){#fig-prediction-map-overview}
-
-![SUID Prediction Map for Chicago](_media/prediction_map_chicago.png){#fig-prediction-map-chicago}
-
-![SUID Prediction Map for Evanston](_media/prediction_map_evanston.png){#fig-prediction-map-evanston}
-
-::: {#fig-prediction-map-suburbs layout-nrow=2}
-
-![West Suburbs](_media/prediction_map_west.png){#fig-prediction-map-west}
-
-![South Suburbs](_media/prediction_map_south.png){#fig-prediction-map-south}
-
-SUID Prediction Map Subsets for Suburban Cook County
-:::
+<!-- ![SUID Prediction Map Overview](_media/prediction_map_overview.png){#fig-prediction-map-overview} -->
+<!-- Tracts are colored based on prospective predictions (blue for negative, red for positive) with intensity of hue determined by consistency with retrospective observations. Gray-colored tracts represent products of the 2020 Census boundary reconfiguration and have no one-to-one comparisons from observations prior to 2020. -->
 
 
+<!-- ![SUID Predictions in Chicago](_media/prediction_map_chicago.png){#fig-prediction-map-chicago} -->
 
 
+<!-- ![SUID Predictions in the South Suburbs](_media/prediction_map_south.png){#fig-prediction-map-south} -->
 
